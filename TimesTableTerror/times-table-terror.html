@@ -192,6 +192,23 @@ html, body {
   gap: 60px; z-index: 40; background: transparent;
 }
 
+/* Game Over screen overlay */
+.game-over-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: none; justify-content: center; align-items: center;
+  flex-direction: column; z-index: 45;
+  background: radial-gradient(ellipse at center, rgba(80,10,10,0.95) 0%, rgba(30,5,5,0.98) 100%);
+}
+.game-over-overlay.active { display: flex; }
+.game-over-overlay h1 {
+  font-size: 56px; color: #FF5722; text-shadow: 3px 3px #000;
+  margin-bottom: 20px; animation: popIn 0.6s ease-out;
+}
+.game-over-overlay p {
+  font-size: 20px; color: #fff; text-shadow: 1px 1px #000;
+  text-align: center; line-height: 1.8; margin-bottom: 30px;
+}
+
 /* Win screen overlay */
 .win-overlay {
   position: absolute; top: 0; left: 0; right: 0; bottom: 0;
@@ -579,6 +596,13 @@ input[type="number"] {
       </div>
     </div>
   </div>
+  <!-- Game Over screen overlay -->
+  <div class="game-over-overlay" id="game-over-overlay">
+    <h1 id="game-over-title"></h1>
+    <p id="game-over-subtitle"></p>
+    <button class="play-again-btn" onclick="window._tttRestart()">Try Again</button>
+  </div>
+
   <!-- Win screen overlay -->
   <div class="win-overlay" id="win-overlay">
     <h1 id="win-title"></h1>
@@ -738,7 +762,8 @@ input[type="number"] {
     // --- TIME LIMIT FOR DIFFICULTY ---
     function timeLimitFor(cfg) {
       var preset = DIFFICULTY_PRESETS[cfg && cfg.difficulty] || DIFFICULTY_PRESETS.easy;
-      if (cfg && cfg.timeLimit != null) return cfg.timeLimit;
+      // User-set time limit takes priority over difficulty presets
+      if (cfg && typeof cfg.timeLimit === 'number' && Number.isFinite(cfg.timeLimit)) return cfg.timeLimit;
       return preset.timeLimit;
     }
     TTT.timeLimitFor = timeLimitFor;
@@ -1562,8 +1587,8 @@ input[type="number"] {
     document.getElementById('hud-below').style.display = 'block';
     document.getElementById('question-area').style.display = 'block';
 
-    // Reset timer for this question
-    gameState.timerMax = TTT.timeLimitFor({ difficulty: gameState.difficulty });
+    // Reset timer for this question — pass full cfg so timeLimitSec from settings is respected
+    gameState.timerMax = TTT.timeLimitFor(gameState.cfg || { difficulty: gameState.difficulty });
     startTimer();
   }
 
@@ -1647,6 +1672,11 @@ input[type="number"] {
 
   function handleWrongAnswer() {
     stopTimer();
+
+    // Decrement lives — if no lives left and hero is defeated, game over
+    gameState.lives = Math.max(0, (gameState.lives || 3) - 1);
+    updateHUD();
+
     gameState.combo = 0;
 
     var heroDef = TTT.HEROES[gameState.selectedHero];
@@ -1672,14 +1702,19 @@ input[type="number"] {
     showEncouragingLine(false);
     updateHUD();
 
-    // Auto-revive if dead
-    if (result.defeated) {
+    // Auto-revive if dead and still have lives left; otherwise game over
+    if (result.defeated && gameState.lives > 0) {
       setTimeout(function() {
         gameState.heroState.health = heroDef.maxHealth;
         gameState.heroState.shield = heroDef.maxHealth * 0.2;
         showEncouragingLine(true); // "You're back!" style
         updateHUD();
         pickNewQuestion();
+      }, 1500);
+    } else if (result.defeated && gameState.lives <= 0) {
+      // Game over: no lives remaining
+      setTimeout(function() {
+        showGameOverScreen();
       }, 1500);
     } else {
       // New question after wrong (still same monster)
@@ -1734,10 +1769,30 @@ input[type="number"] {
       'Best combo streak: <strong>x' + TTT.comboMult(gameState.combo).toFixed(1) + '</strong>';
   }
 
+  // --- GAME OVER SCREEN ---
+  function showGameOverScreen() {
+    gameState.screen = 'gameover';
+    var gameOverOverlay = document.getElementById('game-over-overlay');
+    if (!gameOverOverlay) return;
+    gameOverOverlay.classList.add('active');
+
+    var titleEl = document.getElementById('game-over-title');
+    var subEl = document.getElementById('game-over-subtitle');
+    if (titleEl) titleEl.textContent = 'Game Over';
+    if (subEl) {
+      subEl.innerHTML =
+        'You ran out of lives.<br>' +
+        'XP earned: <strong>' + gameState.totalXp + '</strong> | ' +
+        'Coins collected: <strong>' + gameState.coins + ' 🪙</strong>';
+    }
+  }
+
   function restartGame() {
     // Reset all game state
     document.getElementById('win-overlay').style.display = 'none';
-    gameState.screen = 'select';
+    var gameOverOverlay = document.getElementById('game-over-overlay');
+    if (gameOverOverlay) gameOverOverlay.classList.remove('active');
+    gameState.screen = 'settings';
     gameState.selectedHero = null;
     gameState.heroState = null;
     gameState.monster = null;
@@ -1753,11 +1808,12 @@ input[type="number"] {
     gameState.dungeonState = null;
     gameState.gameWon = false;
     gameState.currentRoomIndex = 0;
+    gameState.lives = (_settings && _settings.lives) ? _settings.lives : 3;
 
-    document.getElementById('hero-select').style.display = 'flex';
     roomInfoEl.style.display = 'none';
     document.getElementById('hud-below').style.display = 'none';
     document.getElementById('question-area').style.display = 'none';
+    openSettingsScreen();
   }
 
   // --- HERO SELECT CLICK HANDLERS ---
@@ -1886,9 +1942,18 @@ input[type="number"] {
   document.addEventListener('keydown', function(e) {
     var key = e.key;
 
-    // Hero select screen — Enter/Space to confirm, or click hero cards
+    // Settings screen — Enter confirms and saves
+    if (gameState.screen === 'settings') {
+      if (key === 'Enter' || key === ' ') {
+        e.preventDefault();
+        saveAndApplySettings();
+      }
+      return;
+    }
+
+    // Hero select screen — Only clicking works on the hero cards
     if (gameState.screen === 'select') {
-      return; // Only clicking works on the hero cards
+      return;
     }
 
     // Pause toggle
@@ -1911,43 +1976,8 @@ input[type="number"] {
       if (TTT.isCorrect(gameState.currentQuestion, idx)) {
         handleCorrectAnswer(idx);
       } else {
-        // Wrong answer — show the right answer text as encouragement
-        var q = gameState.currentQuestion;
-        stopTimer();
-        gameState.combo = 0;
-
-        var heroDef = TTT.HEROES[gameState.selectedHero];
-        var monsterDmg = Math.floor(5 + gameState.roomNumber * 2);
-        var result = TTT.applyHitBackToHero(gameState.heroState, monsterDmg);
-        gameState.heroState.shield = result.shield;
-        gameState.heroState.health = result.health;
-
-        playWrongBuzz();
-        if (!result.defeated) {
-          playMonsterHit();
-        }
-        triggerShake(0.2);
-
-        var heroX = canvas.width * 0.75;
-        spawnParticles(heroX, canvas.height * 0.5, 12, '#F44336');
-
-        // Show correct answer as encouragement
-        showEncouragingLine(false);
-
-        updateHUD();
-
-        if (result.defeated) {
-          setTimeout(function() {
-            gameState.heroState.health = heroDef.maxHealth;
-            gameState.heroState.shield = heroDef.maxHealth * 0.2;
-            updateHUD();
-            pickNewQuestion();
-          }, 1500);
-        } else {
-          setTimeout(function() {
-            pickNewQuestion();
-          }, 1200);
-        }
+        // Wrong answer via keyboard — delegate to shared handler
+        handleWrongAnswer();
       }
     }
   });
@@ -2382,9 +2412,9 @@ input[type="number"] {
     }
 
     // --- GAME STATE INIT ---
-    gameState.screen = 'select';
+    gameState.screen = 'settings';
     updateHUD();
-    showHeroSelectScreen();
+    openSettingsScreen();
     requestAnimationFrame(render);
   }
 

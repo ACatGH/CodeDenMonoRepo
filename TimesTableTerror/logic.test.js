@@ -719,4 +719,168 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
   console.log('PASS: bug2 special-move deterministic behavior tested');
 }
 
+// ------------------------------------------------------------------
+// BONUS EXTENDED — Issue #15: Settings wiring & gameplay edge cases
+// Tests for the inlined settings logic changes and edge cases.
+// ------------------------------------------------------------------
+
+{
+  const group = 'timeLimitFor — cfg.timeLimit edge cases (Issue #15)';
+
+  // Infinity fails Number.isFinite → falls back to easy preset
+  assert.strictEqual(TTT.timeLimitFor({ timeLimit: Infinity }), 15, 'Infinity fails isFinite → easy default (15)');
+
+  // NaN fails Number.isFinite → falls back to easy preset
+  assert.strictEqual(TTT.timeLimitFor({ timeLimit: NaN }), 15, 'NaN fails isFinite → easy default (15)');
+
+  // Negative finite number → returned as-is (game layer should validate)
+  const neg = TTT.timeLimitFor({ timeLimit: -1 });
+  assert.strictEqual(neg, -1, 'negative finite is returned');
+
+  // Zero is a valid finite number
+  assert.strictEqual(TTT.timeLimitFor({ timeLimit: 0 }), 0, 'zero-time-limit works');
+
+  // Missing key (object without timeLimit property) falls back to preset
+  assert.strictEqual(TTT.timeLimitFor({ difficulty: 'medium' }), 12, 'missing key → medium default');
+
+  // Empty object falls back to easy
+  assert.strictEqual(TTT.timeLimitFor({}), 15, 'empty cfg → easy default (15)');
+
+  // String timeLimit is not a number → falls back
+  assert.strictEqual(TTT.timeLimitFor({ difficulty: 'hard', timeLimit: 'five' }), 9, 'string timeLimit ignored → hard preset');
+
+  // Boolean timeLimit is not a number → falls back
+  assert.strictEqual(TTT.timeLimitFor({ difficulty: 'easy', timeLimit: true }), 15, 'boolean timeLimit ignored → easy preset');
+}
+
+{
+  const group = 'startDungeon — full initial state (Issue #15)';
+
+  var ds = TTT.startDungeon('medium');
+
+  // Verify complete initial state
+  assert.strictEqual(ds.currentRoomIndex, 0, 'starts at room 0');
+  assert.strictEqual(ds.difficulty, 'medium', 'difficulty set to medium');
+  assert.strictEqual(ds.totalRooms, 4, '4 total rooms');
+  assert.strictEqual(ds.bossSpecialUsed, false, 'boss special not used');
+  assert.ok(Array.isArray(ds.monsterStates), 'has monsterStates array');
+  assert.strictEqual(ds.roomsCleared.length, 4, 'roomsCleared has 4 slots');
+
+  // All roomsCleared should be false initially
+  for (var i = 0; i < ds.roomsCleared.length; i++) {
+    assert.strictEqual(ds.roomsCleared[i], false, 'room ' + i + ' not cleared at start');
+  }
+}
+
+{
+  const group = 'makeRoomQuestions — edge cases';
+
+  // Zero count → falls through to default (count || 5) → returns 5
+  var qEmpty = TTT.makeRoomQuestions(0, 0);
+  assert.strictEqual(qEmpty.length, 5, 'zero count defaults to 5');
+
+  // Negative room index returns empty array
+  var qNeg = TTT.makeRoomQuestions(-1, 3);
+  assert.strictEqual(qNeg.length, 0, 'negative room → empty array');
+
+  // Large count works (stress test)
+  var qLarge = TTT.makeRoomQuestions(0, 20);
+  assert.strictEqual(qLarge.length, 20, 'large count returns expected length');
+}
+
+{
+  const group = 'makeQuestion — null/undefined cfg edge cases';
+
+  // No arguments → uses defaults (minTable=1, maxTable=5)
+  var qDefault = TTT.makeQuestion();
+  assert.ok(qDefault.a >= 1 && qDefault.a <= 5, 'no-arg question a in [1..5]');
+  assert.ok(qDefault.b >= 1 && qDefault.b <= 5, 'no-arg question b in [1..5]');
+
+  // Null cfg → uses defaults
+  var qNull = TTT.makeQuestion(null);
+  assert.ok(qNull.a >= 1 && qNull.a <= 5, 'null-cfg question a in [1..5]');
+
+  // Empty cfg → uses defaults
+  var qEmptyCfg = TTT.makeQuestion({});
+  assert.ok(qEmptyCfg.a >= 1 && qEmptyCfg.a <= 5, 'empty-cfg question a in [1..5]');
+
+  // minTable > maxTable → should still work (game layer may validate)
+  var qReversed = TTT.makeQuestion({ minTable: 9, maxTable: 3 });
+  assert.ok(typeof qReversed.choices === 'object', 'reversed cfg produces choices');
+}
+
+{
+  const group = 'isDungeonCleared — empty/invalid states';
+
+  // Null dungeon → not cleared
+  assert.strictEqual(TTT.isDungeonCleared(null), false, 'null dungeon → not cleared');
+
+  // Undefined dungeon → not cleared
+  assert.strictEqual(TTT.isDungeonCleared(undefined), false, 'undefined dungeon → not cleared');
+
+  // Empty roomsCleared array → cleared (loop body never runs, no monster check fails)
+  var emptyDs = { currentRoomIndex: -1, roomsCleared: [], totalRooms: 0, monsterStates: [] };
+  assert.strictEqual(TTT.isDungeonCleared(emptyDs), true, 'empty dungeon → cleared (bug in game layer)');
+
+  // All rooms cleared but boss HP > 0 → not cleared
+  var partiallyCleared = {
+    roomsCleared: [true, true, true, true],
+    totalRooms: 4,
+    monsterStates: [{ hp: 50, maxHp: 200 }, null, null, { hp: 50, maxHp: 200 }]
+  };
+  assert.strictEqual(TTT.isDungeonCleared(partiallyCleared), false, 'boss alive → not cleared');
+
+  // All rooms cleared and boss HP ≤ 0 → cleared
+  var fullyCleared = {
+    roomsCleared: [true, true, true, true],
+    totalRooms: 4,
+    monsterStates: [{ hp: -1, maxHp: 200 }, null, null, { hp: 0, maxHp: 200 }]
+  };
+  assert.strictEqual(TTT.isDungeonCleared(fullyCleared), true, 'boss dead → cleared');
+}
+
+{
+  const group = 'ROOMS — property completeness';
+
+  // Every room must have all required properties
+  var requiredProps = ['id', 'name', 'theme', 'tableMin', 'tableMax', 'color',
+                       'bgColor1', 'bgColor2', 'monsterName', 'monsterEmoji',
+                       'monsterDamage', 'monsterHpValue', 'isBoss', 'specialMoveChance',
+                       'phases'];
+  for (var i = 0; i < TTT.ROOMS.length; i++) {
+    var room = TTT.ROOMS[i];
+    for (var j = 0; j < requiredProps.length; j++) {
+      assert.ok(requiredProps[j] in room, 'room ' + i + ' has property "' + requiredProps[j] + '"');
+    }
+    // Verify numeric properties are actually numbers
+    assert.ok(typeof room.monsterDamage === 'number', 'room ' + i + ' monsterDamage is number');
+    assert.ok(typeof room.monsterHpValue === 'number', 'room ' + i + ' monsterHpValue is number');
+    assert.ok(typeof room.specialMoveChance === 'number', 'room ' + i + ' specialMoveChance is number');
+    assert.ok(Array.isArray(room.phases), 'room ' + i + ' phases is array');
+  }
+}
+
+{
+  const group = 'getOrClearComboFeedback — milestone tracking';
+
+  // First call at combo 5 should return a message
+  var firstCall = TTT.getOrClearComboFeedback(5);
+  assert.ok(typeof firstCall === 'string' && firstCall.length > 0, 'combo 5 → feedback message');
+
+  // Calling again at same or lower combo should return null (cleared)
+  var secondCall = TTT.getOrClearComboFeedback(5);
+  assert.strictEqual(secondCall, null, 'same combo → null after clear');
+
+  var thirdCall = TTT.getOrClearComboFeedback(3);
+  assert.strictEqual(thirdCall, null, 'lower combo → null after clear');
+
+  // Higher combo should return a new message
+  var fourthCall = TTT.getOrClearComboFeedback(6);
+  assert.ok(typeof fourthCall === 'string' && fourthCall.length > 0, 'higher combo → new feedback');
+
+  // Back to same → cleared again
+  var fifthCall = TTT.getOrClearComboFeedback(6);
+  assert.strictEqual(fifthCall, null, 'same higher combo → null after clear');
+}
+
 console.log('All ' + Object.keys(TTT).length + ' TTT functions verified successfully.');
