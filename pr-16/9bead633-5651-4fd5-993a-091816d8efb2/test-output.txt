@@ -1,0 +1,55 @@
+=== logic.test.js ===
+PASS: HTML is free of external references
+PASS: bug1 getPhase wrong-args demonstrated
+PASS: bug2 special-move deterministic behavior tested
+All 22 TTT functions verified successfully.
+✔ logic.test.js (47.845667ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 51.225333
+
+=== tests/settings.test.js ===
+▶ clampSettings
+  ✔ returns a fresh object (does not mutate input) (0.647583ms)
+  ✔ clamps range.min >= 1 (0.0735ms)
+  ✔ clamps range.max <= 12 (0.045208ms)
+  ✔ ensures range.min <= range.max (0.069083ms)
+  ✔ clamps questionsPerLevel to [1,50] (0.053917ms)
+  ✔ clamps timeLimitSec to [1,120] (0.066542ms)
+  ✔ clamps lives to [1,10] (0.053625ms)
+  ✔ fills missing fields from defaults (0.043875ms)
+  ✔ survives garbage input (null, undefined, non-number) (0.055375ms)
+  ✔ survives totally null input (0.067459ms)
+  ✔ handles practiceTables normalization (0.076791ms)
+  ✔ filters out-of-range practice tables (0.038333ms)
+  ✔ clamps empty preset to Easy name (0.034459ms)
+✔ clampSettings (1.919458ms)
+▶ applyPreset
+  ✔ Easy sets range [1,5], qpl=10, timeLimit=15, lives=3 (0.092625ms)
+  ✔ Medium sets range [3,7], qpl=12, timeLimit=10, lives=3 (0.17075ms)
+  ✔ Hard sets range [5,12], qpl=15, timeLimit=7, lives=2 (0.106084ms)
+  ✔ applyPreset returns a fresh clamped object (no mutation) (0.053209ms)
+  ✔ merges preset over existing settings (preserves unset fields) (0.032625ms)
+  ✔ unknown preset falls back to defaults and clamps (0.025583ms)
+✔ applyPreset (0.86325ms)
+▶ buildPracticeTables
+  ✔ empty pick falls back to default range (0.07575ms)
+  ✔ picks deduplicate and sort (0.031333ms)
+  ✔ filters out-of-range (0, -1, 13) (0.021291ms)
+  ✔ in-range values are kept (0.0195ms)
+  ✔ uses default range when picks is null/undefined (0.029333ms)
+  ✔ falls back to DEFAULT_SETTINGS when no defaultRange given (0.019208ms)
+✔ buildPracticeTables (0.265416ms)
+ℹ tests 25
+ℹ suites 3
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 60.704542
