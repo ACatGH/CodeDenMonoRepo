@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Times Table Terror</title>
+<style>
+/* === BLOCKY GAME-STYLE STYLES === */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #2C1810;
+  font-family: 'Arial Black', Impact, sans-serif;
+  -webkit-font-smoothing: none;
+}
+
+#game-container {
+  width: 100vw; height: 100vh;
+  display: flex; justify-content: center; align-items: center;
+  background: #1a0e08;
+  position: relative;
+  overflow: hidden;
+}
+
+#main-canvas {
+  border: 4px solid #5a3a20;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* HUD Overlay */
+#hud {
+  position: absolute; top: 0; left: 0; right: 0;
+  pointer-events: none; z-index: 10;
+}
+
+#hud-top-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 16px; background: rgba(44,24,16,0.9);
+  border-bottom: 4px solid #5a3a20;
+}
+
+.hearts { display: flex; gap: 4px; align-items: center; }
+.coin-display { color: #FFD700; font-size: 20px; text-shadow: 2px 2px #8B4513; }
+.combo-display { color: #FF6B6B; font-size: 18px; text-shadow: 2px 2px #8B4513; }
+
+#hud-bottom-bar {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 6px 16px; background: rgba(44,24,16,0.9);
+  border-top: 4px solid #5a3a20;
+}
+
+.xp-bar-container {
+  width: 100%; height: 20px; background: #3b2215;
+  border: 2px solid #5a3a20; position: relative;
+  overflow: hidden;
+}
+
+.xp-bar-fill {
+  height: 100%; background: linear-gradient(to bottom, #4CAF50, #2E7D32);
+  transition: width 0.3s;
+  border-right: 2px solid #6FBF6F;
+}
+
+.xp-text {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; justify-content: center; align-items: center;
+  color: white; font-size: 12px; text-shadow: 1px 1px #000;
+}
+
+/* HUD elements below canvas */
+#hud-below {
+  position: absolute; bottom: 68px; left: 0; right: 0;
+  pointer-events: none; z-index: 10;
+}
+
+/* Answer blocks */
+.answer-blocks {
+  display: flex; justify-content: space-around;
+  padding: 0 20px; gap: 8px;
+}
+
+.answer-block {
+  flex: 1; max-width: 160px; text-align: center;
+  background: linear-gradient(to bottom, #5DAE4F, #3D7A34);
+  border: 3px solid #2D5A1E;
+  padding: 16px 8px; cursor: pointer;
+  color: white; font-size: 24px; font-weight: bold;
+  text-shadow: 2px 2px #000;
+  position: relative;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.5);
+}
+
+.answer-block .key-hint {
+  display: block; margin-top: 6px; font-size: 14px;
+  color: #FFD700; font-weight: normal;
+}
+
+/* Monster health bar */
+.monster-hp-bar {
+  width: 200px; height: 18px; background: #3b2215;
+  border: 2px solid #5a3a20; position: relative; margin: 0 auto;
+  overflow: hidden;
+}
+
+.monster-hp-fill {
+  height: 100%; background: linear-gradient(to right, #E74C3C, #C0392B);
+  transition: width 0.3s; border-right: 2px solid #F1948A;
+}
+
+.monster-hp-text {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; justify-content: center; align-items: center;
+  color: white; font-size: 11px; text-shadow: 1px 1px #000;
+}
+
+/* Timer bar */
+.timer-bar-container {
+  width: 200px; height: 12px; background: #3b2215;
+  border: 2px solid #5a3a20; position: relative; margin: 4px auto 0;
+  overflow: hidden;
+}
+
+.timer-bar-fill {
+  height: 100%; background: linear-gradient(to right, #FF6B6B, #EE5A24);
+  transition: width 0.1s linear; border-right: 2px solid #FFEAA7;
+}
+
+/* Encouraging text */
+.encourage-text {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-size: 36px; color: white; text-shadow: 3px 3px #000, -1px -1px #000;
+  z-index: 20; pointer-events: none;
+  animation: popIn 0.3s ease-out;
+  text-align: center;
+}
+
+@keyframes popIn {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+  70% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+/* Floating damage popup */
+.float-text {
+  position: absolute; font-size: 28px; font-weight: bold;
+  color: #FFD700; text-shadow: 2px 2px #000;
+  pointer-events: none; z-index: 25;
+  animation: floatUp 1s ease-out forwards;
+}
+
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
+}
+
+/* Monster HP and timer bars above canvas */
+#mid-bar-area {
+  position: absolute; top: 44px; left: 0; right: 0;
+  display: flex; justify-content: center; gap: 60px;
+  pointer-events: none; z-index: 10;
+}
+
+/* Paused overlay */
+#pause-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: none; justify-content: center; align-items: center;
+  flex-direction: column; z-index: 50;
+}
+
+#pause-overlay.active { display: flex; }
+#pause-overlay h2 { color: #FFD700; font-size: 48px; margin-bottom: 20px; }
+#pause-overlay p { color: white; font-size: 18px; }
+
+/* Screen shake class */
+.shake { animation: screenShake 0.2s ease-out; }
+@keyframes screenShake {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(-4px, 3px); }
+  40% { transform: translate(4px, -3px); }
+  60% { transform: translate(-3px, 4px); }
+  80% { transform: translate(3px, -2px); }
+}
+
+/* Hero select screen styles */
+.hero-select-screen {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; justify-content: center; align-items: center;
+  gap: 60px; z-index: 40; background: transparent;
+}
+
+.hero-card {
+  width: 250px; padding: 24px; border: 4px solid #5a3a20;
+  background: linear-gradient(to bottom, #4a3020, #3b2215);
+  text-align: center; cursor: pointer; color: white;
+  box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.6);
+  transition: transform 0.15s;
+}
+
+.hero-card:hover { transform: scale(1.05) translateY(-4px); }
+.hero-card .emoji { font-size: 72px; display: block; margin-bottom: 8px; }
+.hero-card h3 { font-size: 24px; color: #FFD700; margin-bottom: 8px; }
+.hero-card p { font-size: 14px; line-height: 1.6; color: #ddd; }
+
+.title-text {
+  position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+  font-size: 42px; color: #FFD700; text-shadow: 3px 3px #000, -1px -1px #000;
+  z-index: 41; text-align: center;
+}
+
+.start-prompt {
+  position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+  font-size: 20px; color: #fff; text-shadow: 2px 2px #000;
+  z-index: 41; animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Question area */
+.question-area {
+  position: absolute; top: 180px; left: 50%; transform: translateX(-50%);
+  text-align: center; z-index: 11; pointer-events: none;
+}
+
+.question-text {
+  font-size: 56px; color: white;
+  text-shadow: 4px 4px #000, -2px -2px #FFD700;
+  letter-spacing: 8px;
+}
+
+/* Room info */
+.room-info {
+  position: absolute; top: 68px; left: 16px;
+  font-size: 16px; color: #ddd; text-shadow: 2px 2px #000;
+  z-index: 11; pointer-events: none;
+}
+
+</style>
+</head>
+<body>
+<div id="game-container">
+  <canvas id="main-canvas" width="800" height="600"></canvas>
+
+  <!-- HUD Top Bar -->
+  <div id="hud">
+    <div id="hud-top-bar">
+      <div class="hearts" id="hearts-display"></div>
+      <div class="coin-display" id="coin-display">🪙 0</div>
+      <div class="combo-display" id="combo-display">Combo: x1</div>
+    </div>
+    <div id="hud-bottom-bar">
+      <div class="xp-bar-container">
+        <div class="xp-bar-fill" id="xp-fill" style="width:0%"></div>
+        <div class="xp-text" id="xp-text">XP: 0 / 10</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mid bar area (monster hp & timer) -->
+  <div id="mid-bar-area">
+    <div class="monster-hp-bar" id="monster-hp-bar">
+      <div class="monster-hp-fill" id="monster-hp-fill" style="width:100%"></div>
+      <div class="monster-hp-text" id="monster-hp-text">Monster HP</div>
+    </div>
+    <div class="timer-bar-container" id="timer-bar-container">
+      <div class="timer-bar-fill" id="timer-fill" style="width:100%"></div>
+    </div>
+  </div>
+
+  <!-- Room info -->
+  <div class="room-info" id="room-info" style="display:none;">Room 1</div>
+
+  <!-- Question area -->
+  <div class="question-area" id="question-area">
+    <div class="question-text" id="question-text">7 × 8 = ?</div>
+  </div>
+
+  <!-- Answer blocks -->
+  <div id="hud-below" style="display:none;">
+    <div class="answer-blocks" id="answer-blocks"></div>
+  </div>
+
+  <!-- Pause overlay -->
+  <div id="pause-overlay">
+    <h2>⏸ PAUSED</h2>
+    <p>Press P or Escape to resume</p>
+    <p style="margin-top:10px;font-size:14px;color:#aaa;">Press Enter to continue playing</p>
+  </div>
+
+  <!-- Hero select screen -->
+  <div class="hero-select-screen" id="hero-select" style="display:none;">
+    <div class="title-text">⚔️ Times Table Terror ⚔️</div>
+    <div class="start-prompt">Press Enter or Space to start!</div>
+    <div class="hero-card" id="hero-chickaletta" tabindex="0">
+      <span class="emoji">🐔</span>
+      <h3>Chickaletta</h3>
+      <p>⚡ Fast attack<br>❤️ 80 HP<br>💥 Big score per hit<br>✨ Flap Burst!</p>
+    </div>
+    <div class="hero-card" id="hero-grapefruit" tabindex="0">
+      <span class="emoji">🦖</span>
+      <h3>Grapefruit</h3>
+      <p>🛡️ Tanky<br>❤️ 150 HP<br>💪 Solid damage<br>✨ Chomp!</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // ================================================================
+  /*=== TTT PURE LOGIC ===*/
+  (function(root) {
+    'use strict';
+
+    var TTT = {};
+
+    // --- HERO DEFINITIONS ---
+    TTT.HEROES = {
+      chickaletta: {
+        name: 'Chickaletta',
+        emoji: '\uD83D\uDC14',
+        maxHealth: 80,
+        attackSpeed: 120,     // ms — faster
+        scorePerHit: 30,       // bigger score per correct hit
+        damage: 25,            // damage to monsters
+        ability: 'Flap Burst'
+      },
+      grapefruit: {
+        name: 'Grapefruit',
+        emoji: '\uD83E\uDD96',
+        maxHealth: 150,
+        attackSpeed: 180,      // slower
+        scorePerHit: 15,       // lower score per hit
+        damage: 20,
+        ability: 'Chomp!'
+      }
+    };
+
+    var DIFFICULTY_PRESETS = {
+      easy:   { minTable: 1, maxTable: 5, timeLimit: 15 },
+      medium: { minTable: 3, maxTable: 7, timeLimit: 12 },
+      hard:   { minTable: 5, maxTable: 9, timeLimit: 9 }
+    };
+
+    // --- QUESTION GENERATION ---
+    function makeQuestion(cfg, rng) {
+      rng = rng || Math.random;
+      var minT = (cfg && cfg.minTable != null) ? cfg.minTable : 1;
+      var maxT = (cfg && cfg.maxTable != null) ? cfg.maxTable : 5;
+
+      // Pick two numbers in range
+      function pickIn(rngFn) {
+        return Math.floor(rngFn() * (maxT - minT + 1)) + minT;
+      }
+      var a = pickIn(rng);
+      var b = pickIn(rng);
+
+      var answer = a * b;
+
+      // Generate 3 unique distractors close to the answer
+      var choices = new Set([answer]);
+      var attempts = 0;
+      while (choices.size < 4 && attempts < 100) {
+        var offset = Math.floor(rng() * 20) - 10; // ±10
+        if (offset === 0) offset = 1 + Math.floor(rng() * 9);
+        var distractor = answer + offset;
+        if (distractor > 0 && !choices.has(distractor)) {
+          choices.add(distractor);
+        }
+        attempts++;
+      }
+      // Fill remaining with safe defaults
+      while (choices.size < 4) {
+        var fallback = answer + choices.size * 7;
+        if (!choices.has(fallback)) choices.add(fallback);
+      }
+
+      var arr = Array.from(choices);
+      // Fisher-Yates shuffle
+      for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(rng() * (i + 1));
+        var tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+      }
+
+      var correctIndex = arr.indexOf(answer);
+
+      return { a: a, b: b, answer: answer, choices: arr, correctIndex: correctIndex };
+    }
+    TTT.makeQuestion = makeQuestion;
+
+    // --- CHECK ANSWER ---
+    function isCorrect(q, index) {
+      return q.choices[index] === q.answer;
+    }
+    TTT.isCorrect = isCorrect;
+
+    // --- COMBO MULTIPLIER ---
+    function comboMult(combo) {
+      if (combo < 3) return 1;
+      if (combo < 6) return 1.5;
+      return 2;
+    }
+    TTT.comboMult = comboMult;
+
+    // --- XP FOR CORRECT ANSWER ---
+    function xpForCorrect(hero, combo) {
+      var base = hero.scorePerHit;
+      return Math.round(base * comboMult(combo));
+    }
+    TTT.xpForCorrect = xpForCorrect;
+
+    // --- COINS FOR CORRECT ANSWER ---
+    function coinsForCorrect(hero, combo) {
+      var base = Math.max(1, hero.scorePerHit / 5 | 0);
+      return Math.round(base * comboMult(combo));
+    }
+    TTT.coinsForCorrect = coinsForCorrect;
+
+    // --- APPLY HIT TO MONSTER (returns updated state) ---
+    function applyHitToMonster(monster, dmg) {
+      var newHp = Math.max(0, monster.hp - dmg);
+      return {
+        hp: newHp,
+        maxHp: monster.maxHp,
+        defeated: newHp <= 0
+      };
+    }
+    TTT.applyHitToMonster = applyHitToMonster;
+
+    // --- APPLY HIT BACK TO HERO (shield first, then health) ---
+    function applyHitBackToHero(heroState, dmg) {
+      var shield = heroState.shield || 0;
+      var health = heroState.health || 0;
+
+      if (shield >= dmg) {
+        return {
+          shield: shield - dmg,
+          health: health,
+          defeated: false
+        };
+      } else {
+        dmg -= shield;
+        shield = 0;
+        var newHealth = Math.max(0, health - dmg);
+        return {
+          shield: 0,
+          health: newHealth,
+          defeated: newHealth <= 0
+        };
+      }
+    }
+    TTT.applyHitBackToHero = applyHitBackToHero;
+
+    // --- TIME LIMIT FOR DIFFICULTY ---
+    function timeLimitFor(cfg) {
+      var preset = DIFFICULTY_PRESETS[cfg && cfg.difficulty] || DIFFICULTY_PRESETS.easy;
+      if (cfg && cfg.timeLimit != null) return cfg.timeLimit;
+      return preset.timeLimit;
+    }
+    TTT.timeLimitFor = timeLimitFor;
+
+    // --- XP NEEDED FOR NEXT LEVEL ---
+    function nextLevelXp(level) {
+      return 10 + level * 15; // monotonic: 25, 40, 55, ...
+    }
+    TTT.nextLevelXp = nextLevelXp;
+
+    // Expose namespace
+    if (typeof window !== 'undefined') {
+      window.TTT = TTT;
+    } else {
+      root.TTT = TTT;
+    }
+
+  })(typeof window !== 'undefined' ? window : globalThis);
+  /*===/TTT PURE LOGIC===*/
+  // ================================================================
+
+
+  // ================================================================
+  // === RENDERING / GAME LAYER (outside pure logic block) ===
+  // ================================================================
+
+  var canvas = document.getElementById('main-canvas');
+  var ctx = canvas.getContext('2d');
+  var container = document.getElementById('game-container');
+
+  // Game state
+  var gameState = {
+    screen: 'select',      // 'select' | 'playing' | 'pause' | 'question'
+    selectedHero: null,
+    heroState: null,
+    monster: null,
+    currentQuestion: null,
+    questionIndex: -1,     // index into answer choices for current question
+    combo: 0,
+    totalXp: 0,
+    coins: 0,
+    roomNumber: 1,
+    levelXp: 0,            // XP toward next level
+    maxLevelXp: 25,
+    timerValue: 0,
+    timerMax: 10,
+    timerActive: false,
+    timerInterval: null,
+    difficulty: 'medium',
+    cfg: { minTable: 3, maxTable: 7, timeLimit: 12 },
+    particles: [],         // active particle effects
+    shakeDuration: 0,
+    shakeOffset: { x: 0, y: 0 },
+    encLinesIndex: 0,
+    floatingTexts: [],     // floating score popups
+    monsterBob: 0,
+    heroBob: 0,
+    selectedHeroCard: null, // which card was clicked
+    isPaused: false
+  };
+
+  var ENCOURAGE_CORRECT = [
+    'Nailed it!', 'Awesome!', 'You\'re a star! 🌟', 'Brilliant!',
+    'Super math!', 'Keep it up!', 'Incredible!'
+  ];
+
+  var ENCOURAGE_WRONG = [
+    'Ouch! One more try!', 'Almost there!', 'So close!',
+    'You\'ll get it next time!', 'Not this one — try again!'
+  ];
+
+  // --- CANVAS DRAWING HELPERS ---
+
+  function clearCanvas() {
+    ctx.fillStyle = '#76B947'; // grass green
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Dirt layer
+    ctx.fillStyle = '#8B6F47';
+    ctx.fillRect(0, canvas.height - 120, canvas.width, 40);
+    ctx.fillStyle = '#6B4F30';
+    ctx.fillRect(0, canvas.height - 80, canvas.width, 40);
+
+    // Sky area (top half)
+    ctx.fillStyle = '#87CEEB';
+    ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+  }
+
+  function drawBlockyHero(x, y, size, bobOffset, color1, color2, isAttacking) {
+    var bob = Math.sin(bobOffset) * 4;
+    ctx.save();
+    ctx.translate(x + size/2, y + size/2 + bob);
+
+    if (isAttacking) {
+      ctx.scale(1.15, 1.15);
+    }
+
+    // Body (stacked cubes — blocky game style)
+    // Main body
+    ctx.fillStyle = color1;
+    var bw = size * 0.7, bh = size * 0.8;
+    ctx.fillRect(-bw/2, -bh/2, bw, bh);
+
+    // Darker bottom for depth
+    ctx.fillStyle = color2;
+    ctx.fillRect(-bw/2, bh/4, bw, bh/4);
+
+    // Head (slightly larger block on top)
+    var headSize = size * 0.55;
+    ctx.fillStyle = color1;
+    ctx.fillRect(headSize/2 - headSize*0.6, -bh/2 - headSize + 8, headSize, headSize);
+
+    // Eyes
+    ctx.fillStyle = '#fff';
+    var eyeSize = 8;
+    ctx.fillRect(headSize/2 - 12, -bh/2 - headSize + 20, eyeSize, eyeSize);
+    ctx.fillRect(headSize/2 + 4, -bh/2 - headSize + 20, eyeSize, eyeSize);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(headSize/2 - 8, -bh/2 - headSize + 24, 3, 3);
+    ctx.fillRect(headSize/2 + 8, -bh/2 - headSize + 24, 3, 3);
+
+    // Nose/beak or mouth detail
+    if (isAttacking) {
+      // Open mouth for attack
+      ctx.fillStyle = '#FF6B6B';
+      ctx.fillRect(headSize/2 - 8, -bh/2 - headSize + 40, 16, 8);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(headSize/2 - 6, -bh/2 - headSize + 40, 4, 4);
+      ctx.fillRect(headSize/2 + 2, -bh/2 - headSize + 40, 4, 4);
+    }
+
+    // Arms (blocky)
+    var armW = size * 0.15, armH = size * 0.6;
+    ctx.fillStyle = color1;
+    ctx.fillRect(-bw/2 - armW*0.8, -bh/4, armW, armH);
+    ctx.fillRect(bw/2 + armW*0.8, -bh/4, armW, armH);
+
+    // Feet
+    var footSize = size * 0.12;
+    ctx.fillStyle = color2;
+    ctx.fillRect(-bw/3, bh/2 + 2, footSize*3, footSize);
+    ctx.fillRect(bw/6, bh/2 + 2, footSize*3, footSize);
+
+    // Highlight for 3D effect (light on top-right)
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(-bw/2, -bh/2, bw, bh * 0.1);
+
+    ctx.restore();
+  }
+
+  function drawBlockyMonster(x, y, size, bobOffset, hpPercent) {
+    var bob = Math.sin(bobOffset) * 5;
+    ctx.save();
+    ctx.translate(x + size/2, y + size/2 + bob);
+
+    // Monster body — dark purple, blocky
+    var bw = size * 0.9, bh = size;
+    var c1 = '#8B00D0'; // purple
+    var c2 = '#6A00A0';
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(-bw/2 - 4, bh/2 + 4, bw + 8, 12);
+
+    // Main body
+    ctx.fillStyle = c1;
+    ctx.fillRect(-bw/2, -bh/2, bw, bh);
+
+    // Darker bottom
+    ctx.fillStyle = c2;
+    ctx.fillRect(-bw/2, bh/4, bw, bh/4);
+
+    // Spikes on top
+    ctx.fillStyle = '#B030FF';
+    for (var si = 0; si < 5; si++) {
+      var sx = -bw/2 + (bw / 5) * si + bw / 10;
+      ctx.beginPath();
+      ctx.moveTo(sx - 8, -bh/2);
+      ctx.lineTo(sx, -bh/2 - 16);
+      ctx.lineTo(sx + 8, -bh/2);
+      ctx.fill();
+    }
+
+    // Eyes (menacing)
+    var eyeSize = size * 0.15;
+    ctx.fillStyle = '#FF0000';
+    ctx.fillRect(-bw/4 - eyeSize/2, -bh/3, eyeSize, eyeSize);
+    ctx.fillRect(bw/4 - eyeSize/2, -bh/3, eyeSize, eyeSize);
+    ctx.fillStyle = '#FFF';
+    ctx.fillRect(-bw/4 - eyeSize/4, -bh/3 + 2, eyeSize/3, eyeSize/3);
+    ctx.fillRect(bw/4 - eyeSize/4, -bh/3 + 2, eyeSize/3, eyeSize/3);
+
+    // Mouth (sharp teeth)
+    ctx.fillStyle = '#FF0000';
+    ctx.fillRect(-bw/4, bh/5, bw/2, bh * 0.15);
+    ctx.fillStyle = '#fff';
+    for (var ti = 0; ti < 4; ti++) {
+      var tx = -bw/4 + (bw/8) * ti;
+      ctx.fillRect(tx + 3, bh/5 + 2, 6, 5);
+    }
+
+    // Arms
+    ctx.fillStyle = c1;
+    ctx.fillRect(-bw/2 - size*0.15, -bh/6, size*0.15, bh * 0.7);
+    ctx.fillRect(bw/2, -bh/6, size*0.15, bh * 0.7);
+
+    // HP bar above body (if damaged)
+    if (hpPercent < 1) {
+      var barW = bw;
+      ctx.fillStyle = '#333';
+      ctx.fillRect(-barW/2, -bh/2 - 24, barW, 8);
+      ctx.fillStyle = hpPercent > 0.5 ? '#4CAF50' : (hpPercent > 0.25 ? '#FF9800' : '#F44336');
+      ctx.fillRect(-barW/2, -bh/2 - 24, barW * hpPercent, 8);
+    }
+
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(-bw/2, -bh/2, bw, bh * 0.1);
+
+    ctx.restore();
+  }
+
+  function drawHeart(x, y, size, filled) {
+    var s = size;
+    if (filled) {
+      ctx.fillStyle = '#E74C3C';
+    } else {
+      ctx.fillStyle = '#555';
+    }
+    // Simple heart shape using rectangles (blocky style)
+    ctx.fillRect(x, y + s*0.25, s, s);
+    ctx.fillRect(x + s*0.75, y + s*0.25, s, s);
+    ctx.fillRect(x - s*0.25, y + s*0.6, s * 1.5, s * 0.3);
+    ctx.fillRect(x + s*0.25, y + s*0.9, s * 0.5, s * 0.3);
+
+    // Shine
+    if (filled) {
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillRect(x + s*0.1, y + s*0.3, s*0.3, s*0.3);
+    }
+  }
+
+  // --- PARTICLE SYSTEM ---
+  function spawnParticles(x, y, count, color) {
+    for (var i = 0; i < count; i++) {
+      gameState.particles.push({
+        x: x + (Math.random() - 0.5) * 30,
+        y: y + (Math.random() - 0.5) * 30,
+        vx: (Math.random() - 0.5) * 8,
+        vy: (Math.random() - 0.5) * 8 - 2,
+        life: 1,
+        decay: 0.02 + Math.random() * 0.03,
+        size: 4 + Math.random() * 8,
+        color: color || '#FFD700'
+      });
+    }
+  }
+
+  function updateParticles(dt) {
+    for (var i = gameState.particles.length - 1; i >= 0; i--) {
+      var p = gameState.particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.2; // gravity
+      p.life -= p.decay;
+      if (p.life <= 0) {
+        gameState.particles.splice(i, 1);
+      }
+    }
+  }
+
+  function drawParticles() {
+    for (var i = 0; i < gameState.particles.length; i++) {
+      var p = gameState.particles[i];
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function spawnFloatingText(x, y, text, color) {
+    gameState.floatingTexts.push({
+      x: x, y: y, text: text, color: color || '#FFD700',
+      life: 1, vy: -2
+    });
+  }
+
+  function updateFloatingText(dt) {
+    for (var i = gameState.floatingTexts.length - 1; i >= 0; i--) {
+      var ft = gameState.floatingTexts[i];
+      ft.y += ft.vy;
+      ft.life -= 0.025;
+      if (ft.life <= 0) {
+        gameState.floatingTexts.splice(i, 1);
+      }
+    }
+  }
+
+  function drawFloatingTexts() {
+    for (var i = 0; i < gameState.floatingTexts.length; i++) {
+      var ft = gameState.floatingTexts[i];
+      ctx.globalAlpha = Math.max(0, ft.life);
+      ctx.fillStyle = ft.color;
+      ctx.font = 'bold 28px Arial Black, Impact, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      ctx.strokeText(ft.text, ft.x, ft.y);
+      ctx.fillText(ft.text, ft.x, ft.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // --- SCREEN SHAKE ---
+  function triggerShake(duration) {
+    gameState.shakeDuration = duration;
+  }
+
+  function updateShake(dt) {
+    if (gameState.shakeDuration > 0) {
+      gameState.shakeDuration -= dt;
+      var intensity = Math.ceil(gameState.shakeDuration * 30);
+      gameState.shakeOffset.x = (Math.random() - 0.5) * intensity;
+      gameState.shakeOffset.y = (Math.random() - 0.5) * intensity;
+    } else {
+      gameState.shakeOffset.x = 0;
+      gameState.shakeOffset.y = 0;
+    }
+  }
+
+  // --- WEB AUDIO ---
+  var audioCtx = null;
+
+  function getAudioCtx() {
+    if (!audioCtx) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch(e) {}
+    }
+    return audioCtx;
+  }
+
+  function playCorrectBlip() {
+    var ac = getAudioCtx();
+    if (!ac) return;
+    try {
+      var osc = ac.createOscillator();
+      var gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(440, ac.currentTime);
+      osc.frequency.linearRampToValueAtTime(880, ac.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.3, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.3);
+      osc.start(ac.currentTime);
+      osc.stop(ac.currentTime + 0.3);
+    } catch(e) {}
+  }
+
+  function playWrongBuzz() {
+    var ac = getAudioCtx();
+    if (!ac) return;
+    try {
+      var osc = ac.createOscillator();
+      var gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, ac.currentTime);
+      osc.frequency.linearRampToValueAtTime(80, ac.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.2, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.4);
+      osc.start(ac.currentTime);
+      osc.stop(ac.currentTime + 0.4);
+    } catch(e) {}
+  }
+
+  function playHitImpact() {
+    var ac = getAudioCtx();
+    if (!ac) return;
+    try {
+      // Short noise burst
+      var bufferSize = ac.sampleRate * 0.1;
+      var buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
+      var data = buffer.getChannelData(0);
+      for (var i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+      }
+      var source = ac.createBufferSource();
+      source.buffer = buffer;
+      var gain = ac.createGain();
+      source.connect(gain);
+      gain.connect(ac.destination);
+      gain.gain.setValueAtTime(0.3, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.15);
+      source.start(ac.currentTime);
+    } catch(e) {}
+  }
+
+  function playMonsterHit() {
+    var ac = getAudioCtx();
+    if (!ac) return;
+    try {
+      var osc = ac.createOscillator();
+      var gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(200, ac.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(60, ac.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.25, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.4);
+      osc.start(ac.currentTime);
+      osc.stop(ac.currentTime + 0.4);
+    } catch(e) {}
+  }
+
+  // --- HUD UPDATES ---
+  var heartsEl = document.getElementById('hearts-display');
+  var coinEl = document.getElementById('coin-display');
+  var comboEl = document.getElementById('combo-display');
+  var xpFillEl = document.getElementById('xp-fill');
+  var xpTextEl = document.getElementById('xp-text');
+  var monsterHpBarEl = document.getElementById('monster-hp-fill');
+  var monsterHpTextEl = document.getElementById('monster-hp-text');
+  var timerFillEl = document.getElementById('timer-fill');
+  var questionTextEl = document.getElementById('question-text');
+  var roomInfoEl = document.getElementById('room-info');
+  var answerBlocksEl = document.getElementById('answer-blocks');
+
+  function updateHUD() {
+    var hs = gameState.heroState;
+    if (!hs) return;
+
+    // Hearts (show full hearts + partial)
+    var maxHp = TTT.HEROES[gameState.selectedHero].maxHealth;
+    var hpRatio = Math.min(1, hs.health / maxHp);
+    var heartCount = 8;
+    var filledHearts = Math.ceil(hpRatio * heartCount);
+    heartsEl.innerHTML = '';
+    for (var i = 0; i < heartCount; i++) {
+      var span = document.createElement('span');
+      span.style.fontSize = '20px';
+      if (i < filledHearts) {
+        span.textContent = '\u2665';
+        span.style.color = '#E74C3C';
+      } else {
+        span.textContent = '\u2660';
+        span.style.color = '#666';
+      }
+      heartsEl.appendChild(span);
+    }
+
+    // Coins
+    coinEl.textContent = '🪙 ' + gameState.coins;
+
+    // Combo
+    var cm = TTT.comboMult(gameState.combo);
+    comboEl.textContent = 'Combo: x' + cm.toFixed(1);
+    if (gameState.combo >= 3) {
+      comboEl.style.color = '#FF6B6B';
+    } else {
+      comboEl.style.color = '#FFD700';
+    }
+
+    // XP bar
+    var xpNeeded = TTT.nextLevelXp(Math.floor(gameState.totalXp / 100));
+    gameState.maxLevelXp = Math.max(xpNeeded, gameState.maxLevelXp);
+    var pct = Math.min(100, (gameState.levelXp / gameState.maxLevelXp) * 100);
+    xpFillEl.style.width = pct + '%';
+    xpTextEl.textContent = 'XP: ' + gameState.levelXp + ' / ' + gameState.maxLevelXp;
+
+    // Monster HP bar
+    if (gameState.monster) {
+      var mhp = Math.min(1, gameState.monster.hp / gameState.monster.maxHp);
+      monsterHpBarEl.style.width = (mhp * 100) + '%';
+      monsterHpTextEl.textContent = 'Monster HP: ' + gameState.monster.hp + '/' + gameState.monster.maxHp;
+    }
+
+    // Timer
+    var timerPct = Math.min(1, gameState.timerValue / gameState.timerMax);
+    timerFillEl.style.width = (timerPct * 100) + '%';
+  }
+
+  function updateAnswerBlocks(question) {
+    answerBlocksEl.innerHTML = '';
+    if (!question) return;
+
+    for (var i = 0; i < 4; i++) {
+      var block = document.createElement('div');
+      block.className = 'answer-block';
+      block.setAttribute('data-index', i);
+      block.innerHTML = question.choices[i] + '<span class="key-hint">[' + (i + 1) + ']</span>';
+      answerBlocksEl.appendChild(block);
+    }
+  }
+
+  function showEncouragingLine(isCorrect, answerText) {
+    var lines = isCorrect ? ENCOURAGE_CORRECT : ENCOURAGE_WRONG;
+    if (!isCorrect && gameState.currentQuestion) {
+      // Show correct answer for wrong answers
+      lines = [lines[0] + ' The answer is ' + gameState.currentQuestion.answer + '.'];
+    }
+    var line = lines[Math.floor(Math.random() * lines.length)];
+
+    var el = document.createElement('div');
+    el.className = 'encourage-text';
+    el.textContent = line;
+    document.getElementById('game-container').appendChild(el);
+    setTimeout(function() { el.remove(); }, 1800);
+  }
+
+  function startTimer() {
+    if (gameState.timerInterval) clearInterval(gameState.timerInterval);
+    gameState.timerValue = gameState.timerMax;
+    gameState.timerActive = true;
+
+    gameState.timerInterval = setInterval(function() {
+      if (!gameState.timerActive || gameState.isPaused) return;
+      gameState.timerValue -= 0.1;
+      if (gameState.timerValue <= 0) {
+        gameState.timerValue = 0;
+        handleWrongAnswer(); // timeout counts as wrong
+      }
+    }, 100);
+  }
+
+  function stopTimer() {
+    if (gameState.timerInterval) {
+      clearInterval(gameState.timerInterval);
+      gameState.timerInterval = null;
+    }
+    gameState.timerActive = false;
+  }
+
+  // --- GAME FLOW ---
+
+  function selectHero(heroName) {
+    gameState.selectedHero = heroName;
+    var heroDef = TTT.HEROES[heroName];
+    gameState.heroState = {
+      health: heroDef.maxHealth,
+      shield: Math.floor(heroDef.maxHealth * 0.2), // small buffer
+      maxShield: Math.floor(heroDef.maxHealth * 0.2)
+    };
+
+    // Hide hero select screen
+    document.getElementById('hero-select').style.display = 'none';
+    roomInfoEl.style.display = 'block';
+
+    startRoom();
+  }
+
+  function startRoom() {
+    gameState.monster = {
+      hp: 50 + gameState.roomNumber * 20,
+      maxHp: 50 + gameState.roomNumber * 20
+    };
+    roomInfoEl.textContent = 'Room ' + gameState.roomNumber;
+    pickNewQuestion();
+    document.getElementById('hero-select').style.display = 'none';
+  }
+
+  function pickNewQuestion() {
+    var q = TTT.makeQuestion(gameState.cfg);
+    gameState.currentQuestion = q;
+    questionTextEl.textContent = q.a + ' × ' + q.b + ' = ?';
+    updateAnswerBlocks(q);
+    document.getElementById('hud-below').style.display = 'block';
+    document.getElementById('question-area').style.display = 'block';
+
+    // Reset timer for this question
+    gameState.timerMax = TTT.timeLimitFor({ difficulty: gameState.difficulty });
+    startTimer();
+  }
+
+  function handleCorrectAnswer(index) {
+    if (gameState.isPaused || !gameState.currentQuestion) return;
+
+    var q = gameState.currentQuestion;
+    if (!TTT.isCorrect(q, index)) return; // should not happen with block click
+
+    stopTimer();
+
+    // Score and XP
+    gameState.combo++;
+    var xp = TTT.xpForCorrect(TTT.HEROES[gameState.selectedHero], gameState.combo);
+    var coins = TTT.coinsForCorrect(TTT.HEROES[gameState.selectedHero], gameState.combo);
+    gameState.totalXp += xp;
+    gameState.levelXp += xp;
+    gameState.coins += coins;
+
+    // Monster takes damage
+    var heroDmg = TTT.HEROES[gameState.selectedHero].damage;
+    var result = TTT.applyHitToMonster(gameState.monster, heroDmg);
+    gameState.monster.hp = result.hp;
+    gameState.monster.maxHp = result.maxHp;
+
+    // Juice!
+    playCorrectBlip();
+    triggerShake(0.3);
+
+    var heroX = canvas.width * 0.25;
+    var heroY = canvas.height * 0.55;
+    spawnParticles(heroX, heroY, 15, '#4CAF50');
+    spawnParticles(canvas.width * 0.7, canvas.height * 0.5, 20, '#FFD700');
+
+    var floatText = '+' + xp;
+    if (gameState.combo >= 3) floatText += ' x' + TTT.comboMult(gameState.combo).toFixed(1);
+    spawnFloatingText(canvas.width * 0.5, canvas.height * 0.3, floatText);
+
+    // Monster defeated?
+    if (result.defeated) {
+      playHitImpact();
+      showEncouragingLine(true);
+      setTimeout(function() {
+        gameState.roomNumber++;
+        startRoom();
+      }, 1500);
+    } else {
+      showEncouragingLine(true);
+      setTimeout(function() {
+        pickNewQuestion();
+      }, 1200);
+    }
+
+    updateHUD();
+  }
+
+  function handleWrongAnswer() {
+    stopTimer();
+    gameState.combo = 0;
+
+    var heroDef = TTT.HEROES[gameState.selectedHero];
+    var monsterDmg = Math.floor(5 + gameState.roomNumber * 2);
+    var result = TTT.applyHitBackToHero(gameState.heroState, monsterDmg);
+    gameState.heroState.shield = result.shield;
+    gameState.heroState.health = result.health;
+
+    // Juice
+    playWrongBuzz();
+    if (!result.defeated) {
+      playMonsterHit();
+    }
+
+    var heroX = canvas.width * 0.75;
+    spawnParticles(heroX, canvas.height * 0.5, 12, '#F44336');
+
+    // Monster counter-attack juice
+    var monX = canvas.width * 0.2;
+    spawnParticles(monX, canvas.height * 0.5, 8, '#8B00D0');
+    triggerShake(0.2);
+
+    showEncouragingLine(false);
+    updateHUD();
+
+    // Auto-revive if dead
+    if (result.defeated) {
+      setTimeout(function() {
+        gameState.heroState.health = heroDef.maxHealth;
+        gameState.heroState.shield = heroDef.maxHealth * 0.2;
+        showEncouragingLine(true); // "You're back!" style
+        updateHUD();
+        pickNewQuestion();
+      }, 1500);
+    } else {
+      // New question after wrong (still same monster)
+      setTimeout(function() {
+        pickNewQuestion();
+      }, 1200);
+    }
+  }
+
+  function showHeroSelectScreen() {
+    document.getElementById('hero-select').style.display = 'flex';
+    gameState.screen = 'select';
+  }
+
+  // --- HERO SELECT CLICK HANDLERS ---
+  document.getElementById('hero-chickaletta').addEventListener('click', function() {
+    selectHero('chickaletta');
+  });
+
+  document.getElementById('hero-grapefruit').addEventListener('click', function() {
+    selectHero('grapefruit');
+  });
+
+  // --- MAIN RENDER LOOP ---
+  var lastTime = performance.now();
+
+  function render(now) {
+    var dt = (now - lastTime) / 1000;
+    lastTime = now;
+
+    // Update bob animations
+    gameState.monsterBob += dt * 3;
+    gameState.heroBob += dt * 4;
+
+    updateShake(dt);
+    updateParticles(dt);
+    updateFloatingText(dt);
+
+    // Apply shake offset
+    ctx.save();
+    ctx.translate(gameState.shakeOffset.x, gameState.shakeOffset.y);
+
+    clearCanvas();
+
+    // Draw room info (background blocks for game feel)
+    // Background grass blocks
+    var blockSize = 40;
+    ctx.fillStyle = '#6AAE37';
+    for (var bx = 0; bx < canvas.width; bx += blockSize) {
+      for (var by = canvas.height - 120; by < canvas.height; by += blockSize) {
+        if ((bx / blockSize + by / blockSize) % 2 === 0) {
+          ctx.fillStyle = '#76B947';
+        } else {
+          ctx.fillStyle = '#5A9E2A';
+        }
+        ctx.fillRect(bx, by, blockSize - 1, blockSize - 1);
+      }
+    }
+
+    // Dirt blocks
+    ctx.fillStyle = '#8B6F47';
+    for (var dx = 0; dx < canvas.width; dx += blockSize) {
+      for (var dy = canvas.height - 80; dy < canvas.height - 40; dy += blockSize) {
+        ctx.fillRect(dx, dy, blockSize - 1, blockSize - 1);
+      }
+    }
+
+    // Grass tufts
+    ctx.fillStyle = '#76B947';
+    for (var gx = 0; gx < canvas.width; gx += 80) {
+      ctx.fillRect(gx + 15, canvas.height - 122, 10, 6);
+      ctx.fillRect(gx + 35, canvas.height - 124, 10, 6);
+    }
+
+    // Hero sprite (right side)
+    if (gameState.selectedHero && gameState.screen === 'playing') {
+      var heroColor1 = gameState.selectedHero === 'chickaletta' ? '#FFD700' : '#E74C3C';
+      var heroColor2 = gameState.selectedHero === 'chickaletta' ? '#FFA500' : '#C0392B';
+      drawBlockyHero(
+        canvas.width * 0.6,
+        canvas.height * 0.35,
+        100,
+        gameState.heroBob,
+        heroColor1, heroColor2,
+        false // not attacking (attack anim could be added here)
+      );
+    }
+
+    // Monster sprite (left side)
+    if (gameState.monster && gameState.screen === 'playing') {
+      drawBlockyMonster(
+        canvas.width * 0.25,
+        canvas.height * 0.4,
+        120,
+        gameState.monsterBob,
+        Math.min(1, gameState.monster.hp / gameState.monster.maxHp)
+      );
+    }
+
+    // Draw particles and floating text
+    drawParticles();
+    drawFloatingTexts();
+
+    ctx.restore();
+
+    requestAnimationFrame(render);
+  }
+
+  // --- PROPER KEYBOARD CONTROLS ---
+  document.addEventListener('keydown', function(e) {
+    var key = e.key;
+
+    // Hero select screen — Enter/Space to confirm, or click hero cards
+    if (gameState.screen === 'select') {
+      return; // Only clicking works on the hero cards
+    }
+
+    // Pause toggle
+    if ((key === 'p' || key === 'Escape') && gameState.screen === 'playing') {
+      e.preventDefault();
+      gameState.isPaused = !gameState.isPaused;
+      document.getElementById('pause-overlay').classList.toggle('active', gameState.isPaused);
+      return;
+    }
+
+    // Answer keys 1-4 (only when playing and not paused)
+    if ((key === '1' || key === '2' || key === '3' || key === '4') &&
+        gameState.screen === 'playing' && !gameState.isPaused) {
+      e.preventDefault();
+      var idx = parseInt(key) - 1;
+
+      if (!gameState.currentQuestion) return;
+
+      // Check if answer is correct
+      if (TTT.isCorrect(gameState.currentQuestion, idx)) {
+        handleCorrectAnswer(idx);
+      } else {
+        // Wrong answer — show the right answer text as encouragement
+        var q = gameState.currentQuestion;
+        stopTimer();
+        gameState.combo = 0;
+
+        var heroDef = TTT.HEROES[gameState.selectedHero];
+        var monsterDmg = Math.floor(5 + gameState.roomNumber * 2);
+        var result = TTT.applyHitBackToHero(gameState.heroState, monsterDmg);
+        gameState.heroState.shield = result.shield;
+        gameState.heroState.health = result.health;
+
+        playWrongBuzz();
+        if (!result.defeated) {
+          playMonsterHit();
+        }
+        triggerShake(0.2);
+
+        var heroX = canvas.width * 0.75;
+        spawnParticles(heroX, canvas.height * 0.5, 12, '#F44336');
+
+        // Show correct answer as encouragement
+        showEncouragingLine(false);
+
+        updateHUD();
+
+        if (result.defeated) {
+          setTimeout(function() {
+            gameState.heroState.health = heroDef.maxHealth;
+            gameState.heroState.shield = heroDef.maxHealth * 0.2;
+            updateHUD();
+            pickNewQuestion();
+          }, 1500);
+        } else {
+          setTimeout(function() {
+            pickNewQuestion();
+          }, 1200);
+        }
+      }
+    }
+  });
+
+  // --- GAME INITIALIZATION ---
+  function init() {
+    gameState.screen = 'select';
+    updateHUD();
+    showHeroSelectScreen();
+    requestAnimationFrame(render);
+  }
+
+  // Start the game!
+  init();
+
+})();
+</script>
+</body>
+</html>
