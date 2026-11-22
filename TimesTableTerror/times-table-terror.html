@@ -192,6 +192,31 @@ html, body {
   gap: 60px; z-index: 40; background: transparent;
 }
 
+/* Win screen overlay */
+.win-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: none; justify-content: center; align-items: center;
+  flex-direction: column; z-index: 45;
+  background: radial-gradient(ellipse at center, rgba(26,81,37,0.95) 0%, rgba(10,40,15,0.98) 100%);
+}
+.win-overlay.active { display: flex; }
+.win-overlay h1 {
+  font-size: 56px; color: #FFD700; text-shadow: 3px 3px #000;
+  margin-bottom: 20px; animation: popIn 0.6s ease-out;
+}
+.win-overlay p {
+  font-size: 20px; color: #fff; text-shadow: 1px 1px #000;
+  text-align: center; line-height: 1.8; margin-bottom: 30px;
+}
+.win-overlay .play-again-btn {
+  padding: 14px 40px; font-size: 22px; font-weight: bold;
+  background: linear-gradient(to bottom, #FFD700, #E6A800);
+  border: 3px solid #B8860B; border-radius: 10px;
+  cursor: pointer; color: #3b2215; text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.win-overlay .play-again-btn:hover { transform: scale(1.05); }
+
 .hero-card {
   width: 250px; padding: 24px; border: 4px solid #5a3a20;
   background: linear-gradient(to bottom, #4a3020, #3b2215);
@@ -276,6 +301,17 @@ html, body {
   <!-- Room info -->
   <div class="room-info" id="room-info" style="display:none;">Room 1</div>
 
+  <!-- Dungeon map (mini progress dots) -->
+  <div id="dungeon-map" style="display:none;">
+    <span class="map-dot map-dot-cleared">1</span>
+    <span class="map-dot map-dot-cleared">2</span>
+    <span class="map-dot map-dot-active">3</span>
+    <span class="map-dot map-dot-future">4</span>
+  </div>
+
+  <!-- Combo milestone feedback -->
+  <div id="combo-feedback" style="position:absolute;top:100px;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:#FFD700;text-shadow:2px 2px #000;z-index:30;opacity:0;transition:all 0.3s;pointer-events:none;"></div>
+
   <!-- Question area -->
   <div class="question-area" id="question-area">
     <div class="question-text" id="question-text">7 × 8 = ?</div>
@@ -307,6 +343,12 @@ html, body {
       <h3>Grapefruit</h3>
       <p>🛡️ Tanky<br>❤️ 150 HP<br>💪 Solid damage<br>✨ Chomp!</p>
     </div>
+  </div>
+  <!-- Win screen overlay -->
+  <div class="win-overlay" id="win-overlay">
+    <h1 id="win-title"></h1>
+    <p id="win-subtitle"></p>
+    <button class="play-again-btn" onclick="window._tttRestart()">Play Again</button>
   </div>
 </div>
 
@@ -472,9 +514,153 @@ html, body {
     }
     TTT.nextLevelXp = nextLevelXp;
 
+    // --- MULTI-ROOM DUNGEON & BOSS LOGIC ---
+    var ROOMS = [
+      { id: 0, name: 'Grass Dungeon',   theme: 'grass',    tableMin: 1,  tableMax: 3,  color: '#5DAE4F', bgColor1: '#76B947', bgColor2: '#6AAE37', monsterName: 'Slime', monsterEmoji: '🟢', monsterDamage: 5,  monsterHpValue: 50,  isBoss: false, specialMoveChance: 0, phases: [{ hpThreshold: 30 }] },
+      { id: 1, name: 'Lava Caverns',    theme: 'lava',    tableMin: 4,  tableMax: 6,  color: '#E74C3C', bgColor1: '#C0392B', bgColor2: '#A93226', monsterName: 'Golem', monsterEmoji: '🗿', monsterDamage: 8,  monsterHpValue: 95,  isBoss: false, specialMoveChance: 0, phases: [{ hpThreshold: 50 }, { hpThreshold: 75 }] },
+      { id: 2, name: 'Dark Forest',     theme: 'forest',  tableMin: 7,  tableMax: 9,  color: '#8E44AD', bgColor1: '#6C3483', bgColor2: '#5B2C6F', monsterName: 'Wolf',  monsterEmoji: '🐺', monsterDamage: 12, monsterHpValue: 130, isBoss: false, specialMoveChance: 0, phases: [{ hpThreshold: 70 }, { hpThreshold: 100 }] },
+      { id: 3, name: 'Times-Table Dragon Lair', theme: 'dragon', tableMin: 1, tableMax: 9, color: '#FF4500', bgColor1: '#B71C1C', bgColor2: '#880E4F', monsterName: 'Dragon', monsterEmoji: '🐉', monsterDamage: 15, monsterHpValue: 200, isBoss: true, specialMoveChance: 0.15, phases: [{ hpThreshold: 120 }, { hpThreshold: 170 }] }
+    ];
+
+    var COMBO_FEEDBACKS = {
+      '0-2': null,
+      '3-4': 'Hot streak! \uD83D\uDD25',
+      '5-7': 'Unstoppable! \uD83D\uDCAA',
+      '8-9': 'Legend! \u26A1',
+      '10-14': 'Godlike! \uD83C\uDF1F',
+      '15+': 'Beyond mortal! \uD83D\uDC51'
+    };
+
+    function startDungeon(difficulty) {
+      var dungeonState = {
+        currentRoomIndex: 0,
+        roomsCleared: new Array(ROOMS.length).fill(false),
+        bossSpecialUsed: false,
+        totalRooms: ROOMS.length,
+        difficulty: difficulty || 'medium',
+        monsterStates: []
+      };
+      return dungeonState;
+    }
+
+    function nextRoom(dungeonState) {
+      if (dungeonState.currentRoomIndex < dungeonState.totalRooms - 1) {
+        dungeonState.currentRoomIndex++;
+        return { roomIndex: dungeonState.currentRoomIndex, exhausted: false };
+      }
+      return { roomIndex: dungeonState.currentRoomIndex, exhausted: true };
+    }
+
+    function getPhase(monsterState, damageDealt) {
+      if (!monsterState || !monsterState.maxHp || monsterState.maxHp <= 0) return 0;
+      var maxHp = monsterState.maxHp;
+      var hpRatio = Math.max(0, monsterState.hp) / maxHp;
+
+      // Phases go backwards based on remaining HP ratio
+      if (hpRatio > 2/3) return 0;
+      if (hpRatio > 1/3) return 1;
+      return 2;
+    }
+
+    function shouldSpecialMove(dungeonState, roomNumber, specialMoveChance) {
+      var room = ROOMS[roomNumber];
+      if (!room || !room.isBoss) return false;
+      if (dungeonState && dungeonState.bossSpecialUsed) return false;
+      // Deterministic in final phase: when monster HP <= 0 (final phase reached), always trigger
+      var roomIdx = dungeonState.currentRoomIndex;
+      if (roomIdx === ROOMS.length - 1) {
+        var ms = dungeonState.monsterState;
+        if (ms && getPhase(ms, (ms.maxHp || 1) - ms.hp) >= 2) return true;
+      }
+      return Math.random() < specialMoveChance;
+    }
+
+    function isBossDefeated(monsterState) {
+      return !!(monsterState && monsterState.hp <= 0);
+    }
+
+    function isDungeonCleared(dungeonState) {
+      if (!dungeonState) return false;
+      for (var i = 0; i < dungeonState.roomsCleared.length; i++) {
+        if (dungeonState.roomsCleared[i] !== true) return false;
+      }
+      // Also need boss monster defeated (hp <= 0)
+      var lastRoomIdx = dungeonState.totalRooms - 1;
+      var ms = dungeonState.monsterStates ? dungeonState.monsterStates[lastRoomIdx] : null;
+      if (ms && ms.hp > 0) return false;
+      return true;
+    }
+
+    function makeRoomQuestions(roomNumber, count) {
+      count = count || 5;
+      var room = ROOMS[roomNumber];
+      if (!room) return [];
+      var questions = [];
+      for (var i = 0; i < count; i++) {
+        var minT = room.tableMin != null ? room.tableMin : 1;
+        var maxT = room.tableMax != null ? room.tableMax : 9;
+        var a = Math.floor(Math.random() * (maxT - minT + 1)) + minT;
+        var b = Math.floor(Math.random() * (maxT - minT + 1)) + minT;
+        questions.push({ a: a, b: b, answer: a * b });
+      }
+      return questions;
+    }
+
+    function getComboFeedback(combo) {
+      var keys = Object.keys(COMBO_FEEDBACKS);
+      for (var i = 0; i < keys.length; i++) {
+        var rangeStr = keys[i];
+        var value = COMBO_FEEDBACKS[rangeStr];
+        if (value === null) continue;
+        var dashIdx = rangeStr.indexOf('-');
+        var low, high;
+        if (dashIdx === -1 && rangeStr.endsWith('+')) {
+          low = parseInt(rangeStr, 10);
+          high = Infinity;
+        } else {
+          low = parseInt(rangeStr.slice(0, dashIdx), 10);
+          high = parseInt(rangeStr.slice(dashIdx + 1), 10);
+        }
+        if (combo >= low && combo <= high) return value;
+      }
+      return null;
+    }
+
+    function getRoomThemeColor(roomNumber) {
+      var room = ROOMS[roomNumber];
+      return room ? room.color : '#5DAE4F';
+    }
+
+    var _lastComboMilestone = -1;
+    function getOrClearComboFeedback(combo) {
+      if (combo <= _lastComboMilestone) return null;
+      var fb = getComboFeedback(combo);
+      if (fb !== null) {
+        _lastComboMilestone = combo;
+        return fb;
+      }
+      return null;
+    }
+
+    // Attach all new dungeon functions to the TTT namespace
+    TTT.ROOMS = ROOMS;
+    TTT.COMBO_FEEDBACKS = COMBO_FEEDBACKS;
+    TTT.startDungeon = startDungeon;
+    TTT.nextRoom = nextRoom;
+    TTT.getPhase = getPhase;
+    TTT.shouldSpecialMove = shouldSpecialMove;
+    TTT.isBossDefeated = isBossDefeated;
+    TTT.isDungeonCleared = isDungeonCleared;
+    TTT.makeRoomQuestions = makeRoomQuestions;
+    TTT.getComboFeedback = getComboFeedback;
+    TTT.getOrClearComboFeedback = getOrClearComboFeedback;
+    TTT.getRoomThemeColor = getRoomThemeColor;
+
     // Expose namespace
     if (typeof window !== 'undefined') {
       window.TTT = TTT;
+      window._tttStartDungeon = TTT.startDungeon;
+      window._tttRestart = function() { restartGame(); };
     } else {
       root.TTT = TTT;
     }
@@ -520,7 +706,9 @@ html, body {
     monsterBob: 0,
     heroBob: 0,
     selectedHeroCard: null, // which card was clicked
-    isPaused: false
+    isPaused: false,
+    dungeonState: null,    // TTT startDungeon() result — tracks room progress
+    gameWon: false         // true after defeating the boss
   };
 
   var ENCOURAGE_CORRECT = [
@@ -929,6 +1117,39 @@ html, body {
       comboEl.style.color = '#FFD700';
     }
 
+    // Combo milestone feedback — flash a message
+    var comboFeedbackTextEl = document.getElementById('combo-feedback');
+    if (comboFeedbackTextEl) {
+      var fb = TTT.getOrClearComboFeedback(gameState.combo);
+      if (fb) {
+        comboFeedbackTextEl.textContent = fb;
+        comboFeedbackTextEl.style.opacity = '1';
+        comboFeedbackTextEl.style.transform = 'translateX(-50%) scale(1.2)';
+        setTimeout(function() {
+          comboFeedbackTextEl.style.opacity = '0';
+          comboFeedbackTextEl.style.transform = 'translateX(-50%) scale(1)';
+        }, 1500);
+      }
+    }
+
+    // Dungeon map — show progress dots for rooms
+    var dungeonMapEl = document.getElementById('dungeon-map');
+    if (dungeonMapEl && gameState.dungeonState) {
+      dungeonMapEl.style.display = 'flex';
+      var ds = gameState.dungeonState;
+      var currentIdx = ds.currentRoomIndex;
+      var dots = dungeonMapEl.querySelectorAll('.map-dot');
+      for (var d = 0; d < dots.length; d++) {
+        if (ds.roomsCleared[d]) {
+          dots[d].className = 'map-dot map-dot-cleared';
+        } else if (d === currentIdx) {
+          dots[d].className = 'map-dot map-dot-active';
+        } else {
+          dots[d].className = 'map-dot map-dot-future';
+        }
+      }
+    }
+
     // XP bar
     var xpNeeded = TTT.nextLevelXp(Math.floor(gameState.totalXp / 100));
     gameState.maxLevelXp = Math.max(xpNeeded, gameState.maxLevelXp);
@@ -940,7 +1161,26 @@ html, body {
     if (gameState.monster) {
       var mhp = Math.min(1, gameState.monster.hp / gameState.monster.maxHp);
       monsterHpBarEl.style.width = (mhp * 100) + '%';
-      monsterHpTextEl.textContent = 'Monster HP: ' + gameState.monster.hp + '/' + gameState.monster.maxHp;
+      var isBossFight = gameState.monster.isBoss;
+
+      // Make boss HP bar more prominent with animated glow
+      if (isBossFight) {
+        monsterHpBarEl.style.boxShadow = '0 0 12px #FF4500, 0 0 24px #FF0000';
+        monsterHpBarEl.style.borderWidth = '3px';
+        monsterHpBarEl.style.borderColor = '#FF4500';
+      } else {
+        monsterHpBarEl.style.boxShadow = 'none';
+        monsterHpBarEl.style.borderWidth = '';
+        monsterHpBarEl.style.borderColor = '';
+      }
+
+      var phaseNames = ['Phase 1', 'Phase 2 🔥', 'Phase 3 💀'];
+      if (isBossFight) {
+        var phase = TTT.getPhase(gameState.currentRoomIndex || 0, gameState.combo);
+        monsterHpTextEl.textContent = 'Monster HP: ' + Math.round(gameState.monster.hp) + '/' + Math.round(gameState.monster.maxHp) + ' — ' + (phaseNames[phase] || 'Boss');
+      } else {
+        monsterHpTextEl.textContent = 'Monster HP: ' + Math.round(gameState.monster.hp) + '/' + Math.round(gameState.monster.maxHp);
+      }
     }
 
     // Timer
@@ -1006,11 +1246,15 @@ html, body {
     var heroDef = TTT.HEROES[heroName];
     gameState.heroState = {
       health: heroDef.maxHealth,
-      shield: Math.floor(heroDef.maxHealth * 0.2), // small buffer
+      shield: Math.floor(heroDef.maxHealth * 0.2),
       maxShield: Math.floor(heroDef.maxHealth * 0.2)
     };
 
-    // Hide hero select screen
+    // Initialize dungeon
+    gameState.dungeonState = TTT.startDungeon(gameState.difficulty);
+    gameState.gameWon = false;
+    gameState.roomNumber = 1;
+
     document.getElementById('hero-select').style.display = 'none';
     roomInfoEl.style.display = 'block';
 
@@ -1018,17 +1262,67 @@ html, body {
   }
 
   function startRoom() {
+    var dungeonState = gameState.dungeonState;
+    var roomIdx = dungeonState ? dungeonState.currentRoomIndex : 0;
+    var room = TTT.ROOMS[roomIdx] || TTT.ROOMS[0];
+
+    if (dungeonState) {
+      dungeonState.roomsCleared[roomIdx] = true;
+    }
+
     gameState.monster = {
-      hp: 50 + gameState.roomNumber * 20,
-      maxHp: 50 + gameState.roomNumber * 20
+      hp: room.monsterHpValue,
+      maxHp: room.monsterHpValue,
+      isBoss: !!room.isBoss,
+      phase: 0
     };
-    roomInfoEl.textContent = 'Room ' + gameState.roomNumber;
+
+    // Update room info display
+    var isBoss = room.isBoss ? ' (BOSS!)' : '';
+    roomInfoEl.textContent = room.name + isBoss;
+
+    // Enable dungeon map for non-first rooms (and always show from room 2+)
+    document.getElementById('dungeon-map').style.display = 'flex';
+    if (!isBoss && roomIdx > 0) {
+      document.getElementById('dungeon-map').style.display = 'none';
+    }
+
+    // Store current room index for HUD/map rendering
+    gameState.currentRoomIndex = roomIdx;
+
     pickNewQuestion();
     document.getElementById('hero-select').style.display = 'none';
   }
 
+  function advanceToNextRoom() {
+    var dungeonState = gameState.dungeonState;
+    var nextResult = TTT.nextRoom(dungeonState);
+    if (nextResult.exhausted) {
+      // No more rooms to advance — this shouldn't happen since boss is the last room
+      return;
+    }
+    var nextIdx = nextResult.roomIndex;
+    // Slight hero heal between rooms
+    if (gameState.heroState) {
+      var heroDef = TTT.HEROES[gameState.selectedHero];
+      gameState.heroState.health = Math.min(
+        heroDef.maxHealth,
+        gameState.heroState.health + Math.floor(heroDef.maxHealth * 0.25)
+      );
+    }
+    startRoom();
+  }
+
   function pickNewQuestion() {
-    var q = TTT.makeQuestion(gameState.cfg);
+    var roomIdx = gameState.currentRoomIndex || 0;
+    var room = TTT.ROOMS[roomIdx];
+    var q;
+    if (room && room.isBoss) {
+      // Boss rooms get questions from the full table range via makeRoomQuestions
+      q = TTT.makeRoomQuestions(roomIdx, 1)[0] || TTT.makeQuestion(gameState.cfg);
+    } else {
+      q = TTT.makeQuestion(gameState.cfg);
+    }
     gameState.currentQuestion = q;
     questionTextEl.textContent = q.a + ' × ' + q.b + ' = ?';
     updateAnswerBlocks(q);
@@ -1071,6 +1365,20 @@ html, body {
     spawnParticles(heroX, heroY, 15, '#4CAF50');
     spawnParticles(canvas.width * 0.7, canvas.height * 0.5, 20, '#FFD700');
 
+    // Check for boss special move (triggered on correct answers during boss)
+    if (gameState.dungeonState && gameState.monster && gameState.monster.isBoss) {
+      var roomIdx = gameState.currentRoomIndex || 0;
+      var roomDef = TTT.ROOMS[roomIdx];
+      var chance = roomDef ? roomDef.specialMoveChance : 0;
+      if (chance > 0 && TTT.shouldSpecialMove(gameState.dungeonState, roomIdx, chance)) {
+        gameState.dungeonState.bossSpecialUsed = true;
+        // Speed up timer by 30% — reduce remaining time
+        var oldTime = gameState.timerValue;
+        gameState.timerValue = Math.max(1, oldTime * 0.7);
+        showBossSpecialMove();
+      }
+    }
+
     var floatText = '+' + xp;
     if (gameState.combo >= 3) floatText += ' x' + TTT.comboMult(gameState.combo).toFixed(1);
     spawnFloatingText(canvas.width * 0.5, canvas.height * 0.3, floatText);
@@ -1079,10 +1387,21 @@ html, body {
     if (result.defeated) {
       playHitImpact();
       showEncouragingLine(true);
-      setTimeout(function() {
-        gameState.roomNumber++;
-        startRoom();
-      }, 1500);
+
+      var roomIdx = gameState.currentRoomIndex || 0;
+      var isBoss = TTT.ROOMS[roomIdx] && !!TTT.ROOMS[roomIdx].isBoss;
+
+      if (isBoss) {
+        // Boss defeated! — Show win screen after delay
+        setTimeout(function() {
+          showWinScreen();
+        }, 1500);
+      } else {
+        // Normal room — advance to next
+        setTimeout(function() {
+          advanceToNextRoom();
+        }, 1500);
+      }
     } else {
       showEncouragingLine(true);
       setTimeout(function() {
@@ -1137,9 +1456,75 @@ html, body {
     }
   }
 
+  function showBossSpecialMove() {
+    // Visual: red flash on the monster area + warning text
+    var monX = canvas.width * 0.2;
+    spawnParticles(monX, canvas.height * 0.5, 30, '#FF4500');
+    triggerShake(0.5);
+    playMonsterHit();
+
+    // Flash boss warning message on HUD
+    var hudBelow = document.getElementById('hud-below');
+    if (hudBelow) {
+      var warnEl = document.createElement('div');
+      warnEl.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;font-weight:bold;color:#FF4500;text-shadow:2px 2px 0 #000;pointer-events:none;z-index:100;';
+      warnEl.textContent = '⚠️ BOSS SPECIAL! ⚠️';
+      document.body.appendChild(warnEl);
+      setTimeout(function() {
+        if (document.body.contains(warnEl)) document.body.removeChild(warnEl);
+      }, 2000);
+    }
+  }
+
   function showHeroSelectScreen() {
     document.getElementById('hero-select').style.display = 'flex';
     gameState.screen = 'select';
+  }
+
+  // --- WIN SCREEN ---
+  function showWinScreen() {
+    gameState.screen = 'win';
+    var winOverlay = document.getElementById('win-overlay');
+    if (!winOverlay) return;
+    winOverlay.style.display = 'flex';
+
+    var winTitleEl = document.getElementById('win-title');
+    var winSubEl = document.getElementById('win-subtitle');
+    var finalRoomIdx = gameState.currentRoomIndex || 0;
+    var roomName = (TTT.ROOMS[finalRoomIdx] && TTT.ROOMS[finalRoomIdx].name) || 'Times-Table Dragon Lair';
+
+    winTitleEl.textContent = 'You Did It! 🎉';
+    winSubEl.innerHTML =
+      'You defeated the <strong>' + roomName + '</strong> and cleared the dungeon!<br>' +
+      'XP earned: <strong>' + gameState.totalXp + '</strong> | ' +
+      'Coins collected: <strong>' + gameState.coins + ' 🪙</strong><br>' +
+      'Best combo streak: <strong>x' + TTT.comboMult(gameState.combo).toFixed(1) + '</strong>';
+  }
+
+  function restartGame() {
+    // Reset all game state
+    document.getElementById('win-overlay').style.display = 'none';
+    gameState.screen = 'select';
+    gameState.selectedHero = null;
+    gameState.heroState = null;
+    gameState.monster = null;
+    gameState.currentQuestion = null;
+    gameState.questionIndex = -1;
+    gameState.combo = 0;
+    gameState.totalXp = 0;
+    gameState.coins = 0;
+    gameState.roomNumber = 1;
+    gameState.levelXp = 0;
+    gameState.timerValue = 0;
+    gameState.timerMax = 10;
+    gameState.dungeonState = null;
+    gameState.gameWon = false;
+    gameState.currentRoomIndex = 0;
+
+    document.getElementById('hero-select').style.display = 'flex';
+    roomInfoEl.style.display = 'none';
+    document.getElementById('hud-below').style.display = 'none';
+    document.getElementById('question-area').style.display = 'none';
   }
 
   // --- HERO SELECT CLICK HANDLERS ---
@@ -1172,31 +1557,59 @@ html, body {
 
     clearCanvas();
 
-    // Draw room info (background blocks for game feel)
-    // Background grass blocks
+    // Draw room info (background blocks for game feel) — themed per dungeon room
     var blockSize = 40;
-    ctx.fillStyle = '#6AAE37';
+    var themeColor1 = '#76B947';
+    var themeColor2 = '#5A9E2A';
+    var baseColor = '#6AAE37';
+    if (gameState.dungeonState && gameState.dungeonState.currentRoomIndex != null) {
+      var room = TTT.ROOMS[gameState.dungeonState.currentRoomIndex];
+      if (room) {
+        themeColor1 = room.bgColor1 || '#76B947';
+        themeColor2 = room.bgColor2 || '#5A9E2A';
+        baseColor = room.color || '#6AAE37';
+      }
+    }
+    ctx.fillStyle = baseColor;
     for (var bx = 0; bx < canvas.width; bx += blockSize) {
       for (var by = canvas.height - 120; by < canvas.height; by += blockSize) {
         if ((bx / blockSize + by / blockSize) % 2 === 0) {
-          ctx.fillStyle = '#76B947';
+          ctx.fillStyle = themeColor1;
         } else {
-          ctx.fillStyle = '#5A9E2A';
+          ctx.fillStyle = themeColor2;
         }
         ctx.fillRect(bx, by, blockSize - 1, blockSize - 1);
       }
     }
 
-    // Dirt blocks
-    ctx.fillStyle = '#8B6F47';
+    // Dirt blocks (themed: brown normally, reddish for lava, dark for forest)
+    var dirtColor = '#8B6F47';
+    if (gameState.dungeonState && gameState.dungeonState.currentRoomIndex != null) {
+      var room2 = TTT.ROOMS[gameState.dungeonState.currentRoomIndex];
+      if (room2) {
+        if (room2.id === 1) dirtColor = '#A93226';
+        else if (room2.id === 2) dirtColor = '#4A2C6F';
+        else if (room2.id === 3) dirtColor = '#880E4F';
+      }
+    }
+    ctx.fillStyle = dirtColor;
     for (var dx = 0; dx < canvas.width; dx += blockSize) {
       for (var dy = canvas.height - 80; dy < canvas.height - 40; dy += blockSize) {
         ctx.fillRect(dx, dy, blockSize - 1, blockSize - 1);
       }
     }
 
-    // Grass tufts
-    ctx.fillStyle = '#76B947';
+    // Grass tufts (themed per room)
+    var tuftColor = '#76B947';
+    if (gameState.dungeonState && gameState.dungeonState.currentRoomIndex != null) {
+      var roomTuft = TTT.ROOMS[gameState.dungeonState.currentRoomIndex];
+      if (roomTuft) {
+        if (roomTuft.id === 1) tuftColor = '#C0392B';
+        else if (roomTuft.id === 2) tuftColor = '#6C3483';
+        else if (roomTuft.id === 3) tuftColor = '#FF4500';
+      }
+    }
+    ctx.fillStyle = tuftColor;
     for (var gx = 0; gx < canvas.width; gx += 80) {
       ctx.fillRect(gx + 15, canvas.height - 122, 10, 6);
       ctx.fillRect(gx + 35, canvas.height - 124, 10, 6);
