@@ -326,8 +326,8 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
   assert.strictEqual(r0.tableMax, 3, 'room 0 tableMax');
   assert.ok(r0.color, 'room 0 has color');
   assert.ok(r0.bgColor1 && r0.bgColor2, 'room 0 has theme colors');
-  assert.strictEqual(typeof r0.monsterHp, 'function', 'room 0 has monsterHp function');
-  assert.strictEqual(r0.boss, false, 'room 0 is not a boss room');
+  assert.ok(typeof r0.monsterHpValue === 'number', 'room 0 hp is numeric');
+  assert.strictEqual(r0.isBoss, false, 'room 0 is not a boss room');
   assert.strictEqual(r0.specialMoveChance, 0, 'non-boss rooms have no special move chance');
 
   // Room 1: Lava Caverns
@@ -336,7 +336,9 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
   assert.strictEqual(r1.name, 'Lava Caverns', 'room 1 name');
   assert.strictEqual(r1.tableMin, 4, 'room 1 tableMin');
   assert.strictEqual(r1.tableMax, 6, 'room 1 tableMax');
-  assert.strictEqual(r1.boss, false, 'room 1 is not a boss room');
+  assert.ok(typeof r1.monsterHpValue === 'number', 'room 1 hp is numeric');
+  assert.ok(Array.isArray(r1.phases), 'room 1 has phases array');
+  assert.strictEqual(r1.isBoss, false, 'room 1 is not a boss room');
 
   // Room 2: Dark Forest
   var r2 = TTT.ROOMS[2];
@@ -344,7 +346,9 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
   assert.strictEqual(r2.name, 'Dark Forest', 'room 2 name');
   assert.strictEqual(r2.tableMin, 7, 'room 2 tableMin');
   assert.strictEqual(r2.tableMax, 9, 'room 2 tableMax');
-  assert.strictEqual(r2.boss, false, 'room 2 is not a boss room');
+  assert.ok(typeof r2.monsterHpValue === 'number', 'room 2 hp is numeric');
+  assert.ok(Array.isArray(r2.phases), 'room 2 has phases array');
+  assert.strictEqual(r2.isBoss, false, 'room 2 is not a boss room');
 
   // Room 3: Times-Table Dragon Lair (boss)
   var r3 = TTT.ROOMS[3];
@@ -352,7 +356,9 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
   assert.strictEqual(r3.name, 'Times-Table Dragon Lair', 'room 3 name');
   assert.strictEqual(r3.tableMin, 1, 'boss uses all tables');
   assert.strictEqual(r3.tableMax, 9, 'boss uses all tables');
-  assert.strictEqual(r3.boss, true, 'room 3 is a boss room');
+  assert.ok(typeof r3.monsterHpValue === 'number', 'room 3 hp is numeric');
+  assert.ok(Array.isArray(r3.phases), 'room 3 has phases array');
+  assert.strictEqual(r3.isBoss, true, 'room 3 is a boss room');
 }
 
 // ------------------------------------------------------------------
@@ -362,16 +368,16 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
 {
   const group = 'COMBO_FEEDBACKS';
   assert.ok(TTT.COMBO_FEEDBACKS, 'COMBO_FEEDBACKS must exist');
-  assert.ok(TTT.COMBO_FEEDBACKS.length >= 3, 'at least 3 combo feedbacks');
+  assert.ok(typeof TTT.COMBO_FEEDBACKS === 'object', 'is a mapping object');
 
-  // First feedback at combo >= 3
-  var firstFb = TTT.COMBO_FEEDBACKS[0];
-  assert.ok(firstFb.combo >= 3, 'first feedback at combo >= 3');
-  assert.ok(typeof firstFb.message === 'string' && firstFb.message.length > 0, 'has message');
-
-  // All combos are increasing
-  for (var i = 1; i < TTT.COMBO_FEEDBACKS.length; i++) {
-    assert.ok(TTT.COMBO_FEEDBACKS[i].combo > TTT.COMBO_FEEDBACKS[i - 1].combo, 'combos increasing');
+  // Check range-based keys
+  var keys = Object.keys(TTT.COMBO_FEEDBACKS);
+  assert.ok(keys.length >= 4, 'at least 4 combo feedback ranges');
+  
+  // All values are strings (except null for the base range)
+  for (var i = 0; i < keys.length; i++) {
+    var val = TTT.COMBO_FEEDBACKS[keys[i]];
+    assert.ok(val === null || typeof val === 'string', 'value is string or null');
   }
 }
 
@@ -399,6 +405,9 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
   // Different difficulty
   var ds3 = TTT.startDungeon('hard');
   assert.strictEqual(ds3.difficulty, 'hard', 'hard difficulty preserved');
+
+  // monsterStates exists (array of nulls)
+  assert.ok(Array.isArray(ds.monsterStates), 'has monsterStates array');
 }
 
 // ------------------------------------------------------------------
@@ -411,22 +420,27 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
 
   // Advance from 0 to 1
   var next = TTT.nextRoom(ds);
-  assert.strictEqual(next, 1, 'advance 0→1');
+  assert.strictEqual(next.exhausted, false, 'advance 0→1 not exhausted');
+  assert.strictEqual(next.roomIndex, 1, 'roomIndex is 1');
   assert.strictEqual(ds.currentRoomIndex, 1, 'state updated');
 
   // Advance to boss (room 3)
   next = TTT.nextRoom(ds);
-  assert.strictEqual(next, 2, 'advance 1→2');
+  assert.strictEqual(next.exhausted, false, 'advance 1→2 not exhausted');
+  assert.strictEqual(next.roomIndex, 2, 'roomIndex is 2');
   next = TTT.nextRoom(ds);
-  assert.strictEqual(next, 3, 'advance 2→boss');
+  assert.strictEqual(next.exhausted, false, 'advance 2→boss not exhausted');
+  assert.strictEqual(next.roomIndex, 3, 'roomIndex is 3 (boss)');
 
-  // Past the end → -1
+  // Past the end → exhausted: true
   next = TTT.nextRoom(ds);
-  assert.strictEqual(next, -1, 'past boss returns -1');
+  assert.strictEqual(next.exhausted, true, 'past boss returns exhausted');
+  assert.strictEqual(next.roomIndex, 3, 'still room 3');
 
-  // Idempotent: keep returning -1
+  // Keep returning exhausted
   next = TTT.nextRoom(ds);
-  assert.strictEqual(next, -1, '-1 stays after last room');
+  assert.strictEqual(next.exhausted, true, 'remains exhausted');
+  assert.strictEqual(next.roomIndex, 3, 'still room 3');
 }
 
 // ------------------------------------------------------------------
@@ -435,16 +449,26 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
 
 {
   const group = 'getPhase';
-  assert.strictEqual(TTT.getPhase(0, 0), 0, 'combo 0 → phase 0');
-  assert.strictEqual(TTT.getPhase(0, 4), 0, 'combo 4 → phase 0');
-  assert.strictEqual(TTT.getPhase(3, 5), 1, 'combo 5 → phase 1');
-  assert.strictEqual(TTT.getPhase(3, 9), 1, 'combo 9 → phase 1');
-  assert.strictEqual(TTT.getPhase(3, 10), 2, 'combo 10 → phase 2');
-  assert.strictEqual(TTT.getPhase(3, 15), 2, 'combo 15 → phase 2');
 
-  // Edge: exactly at threshold
-  assert.strictEqual(TTT.getPhase(0, 4), 0, 'exactly 4 → phase 0');
-  assert.strictEqual(TTT.getPhase(0, 5), 1, 'exactly 5 → phase 1');
+  var msLowHp = { hp: 100, maxHp: 100 };
+  assert.strictEqual(TTT.getPhase(msLowHp, 0), 0, 'full HP → phase 0');
+
+  var msMidHp = { hp: 50, maxHp: 100 };
+  assert.strictEqual(TTT.getPhase(msMidHp, 50), 1, '50% remaining → phase 1');
+
+  var msLowHp2 = { hp: 10, maxHp: 100 };
+  assert.strictEqual(TTT.getPhase(msLowHp2, 90), 2, '10% remaining → phase 2');
+
+  // Edge: exactly at 33%/66% thresholds
+  var msThird = { hp: 67, maxHp: 100 };
+  assert.strictEqual(TTT.getPhase(msThird, 33), 0, '~67% → phase 0 (above 2/3)');
+
+  var msTwoThirds = { hp: 34, maxHp: 100 };
+  assert.strictEqual(TTT.getPhase(msTwoThirds, 66), 1, '~34% → phase 1 (between 1/3 and 2/3)');
+
+  // Edge: null/undefined
+  assert.strictEqual(TTT.getPhase(null, 0), 0, 'null monster → phase 0');
+  assert.strictEqual(TTT.getPhase(undefined, 0), 0, 'undefined monster → phase 0');
 }
 
 // ------------------------------------------------------------------
@@ -477,11 +501,14 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
 {
   const group = 'isBossDefeated';
 
-  var bossState = { defeated: true };
-  assert.strictEqual(TTT.isBossDefeated(bossState), true, 'defeated=true → true');
+  var bossDefeated = { hp: -1, maxHp: 200 };
+  assert.strictEqual(TTT.isBossDefeated(bossDefeated), true, 'hp -1 → defeated');
 
-  var bossAlive = { defeated: false };
-  assert.strictEqual(TTT.isBossDefeated(bossAlive), false, 'defeated=false → false');
+  var bossAtZero = { hp: 0, maxHp: 200 };
+  assert.strictEqual(TTT.isBossDefeated(bossAtZero), true, 'hp 0 → defeated');
+
+  var bossAlive = { hp: 50, maxHp: 200 };
+  assert.strictEqual(TTT.isBossDefeated(bossAlive), false, 'hp 50 → not defeated');
 
   // Null/undefined → false
   assert.strictEqual(TTT.isBossDefeated(null), false, 'null → false');
@@ -495,15 +522,22 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
 {
   const group = 'isDungeonCleared';
 
-  // All true
+  // All true + boss defeated → true
   var ds1 = TTT.startDungeon();
   ds1.roomsCleared = [true, true, true, true];
-  assert.strictEqual(TTT.isDungeonCleared(ds1), true, 'all cleared → true');
+  ds1.monsterStates = [{ hp: -1 }, { hp: -50 }, { hp: -100 }, { hp: -1 }];
+  assert.strictEqual(TTT.isDungeonCleared(ds1), true, 'all cleared + boss defeated → true');
 
-  // One false
+  // One room not cleared
   var ds2 = TTT.startDungeon();
   ds2.roomsCleared = [true, false, true, true];
   assert.strictEqual(TTT.isDungeonCleared(ds2), false, 'one not cleared → false');
+
+  // Boss still alive
+  var ds3 = TTT.startDungeon();
+  ds3.roomsCleared = [true, true, true, true];
+  ds3.monsterStates = [{ hp: -1 }, { hp: -50 }, { hp: -100 }, { hp: 50 }];
+  assert.strictEqual(TTT.isDungeonCleared(ds3), false, 'boss still alive → false');
 
   // Null/undefined → false
   assert.strictEqual(TTT.isDungeonCleared(null), false, 'null → false');
@@ -567,11 +601,11 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
   var fbHi = TTT.getComboFeedback(10);
   assert.ok(typeof fbHi === 'string' && fbHi.length > 0, 'combo 10 returns message');
 
-  // At threshold
-  for (var i = 0; i < TTT.COMBO_FEEDBACKS.length; i++) {
-    var fb = TTT.getComboFeedback(TTT.COMBO_FEEDBACKS[i].combo);
-    assert.ok(typeof fb === 'string' && fb.length > 0, 'at threshold → message');
-  }
+  // At various range boundaries
+  assert.ok(typeof TTT.getComboFeedback(3) === 'string', 'combo 3 → message');
+  assert.ok(typeof TTT.getComboFeedback(5) === 'string', 'combo 5 → message');
+  assert.ok(typeof TTT.getComboFeedback(8) === 'string', 'combo 8 → message');
+  assert.ok(typeof TTT.getComboFeedback(15) === 'string', 'combo 15 → message');
 }
 
 // ------------------------------------------------------------------
