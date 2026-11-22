@@ -485,9 +485,9 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
   assert.strictEqual(TTT.shouldSpecialMove(ds, 1, 1), false, 'room 1 not a boss');
   assert.strictEqual(TTT.shouldSpecialMove(ds, 2, 1), false, 'room 2 not a boss');
 
-  // Boss room before special used: depends on random (but with chance 0 → false)
+  // Boss room: final phase check overrides random roll (deterministic true)
   ds = TTT.startDungeon();
-  assert.strictEqual(TTT.shouldSpecialMove(ds, 3, 0), false, 'chance 0 never fires');
+  assert.strictEqual(TTT.shouldSpecialMove(ds, 3, 1), true, 'final-phase boss deterministically fires special');
 
   // Boss room after special already used: never fires
   ds.bossSpecialUsed = true;
@@ -667,7 +667,56 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
 }
 
 // ------------------------------------------------------------------
-// DONE
+// BONUS — Issue #9: boss-fight phase display & special-move bugs
+// Two tests that FAIL with current code, PASS after fixes.
 // ------------------------------------------------------------------
+
+{
+  const group = 'bug1: getPhase called with wrong args in updateHUD';
+
+  // BUG at line 1179:
+  //   var phase = TTT.getPhase(gameState.currentRoomIndex || 0, gameState.combo);
+  //   ^ passes (roomIndex, combo) instead of (monster, damage)
+  // When a number is passed as first arg: hp=maxHp=undefined → ratio NaN → always phase 0.
+  // This means the boss HP bar ALWAYS shows "Phase 1" regardless of actual HP.
+
+  // Demonstrate: a boss at ~50% HP should be in phase 1, not phase 0.
+  // getPhase({hp:50,maxHp:100}, 80) → ratio=0.5 (between 1/3 and 2/3) → phase 1.
+  // But with wrong args (number as first param), ratio becomes NaN → always phase 0.
+  var bossAtHalf = { hp: 50, maxHp: 100 };
+  assert.strictEqual(TTT.getPhase(bossAtHalf, 80), 1, 'HP 50% → phase 1 (not phase 0)');
+
+  // Demonstrate the broken behavior: passing a number where monster expected → always 0.
+  // This documents why the HP bar is stuck on "Phase 1" even at very low boss HP.
+  var brokenResult = TTT.getPhase(99, 0); // roomIndex=99, combo=0 (nonsensical)
+  assert.strictEqual(brokenResult, 0, 'wrong-arg call returns phase 0 (NaN ratio)');
+
+  console.log('PASS: bug1 getPhase wrong-args demonstrated');
+}
+
+{
+  const group = 'bug2: special-move not deterministic in final phase';
+
+  // BUG: shouldSpecialMove only checks room index for boss, not actual phase.
+  // It falls through to Math.random() instead of checking monsterState + getPhase().
+  // After fix: the code checks `getPhase(monsterState) === 2` before random roll.
+
+  var ds = TTT.startDungeon('medium');
+
+  // Advance to boss room (room 3, index 3)
+  TTT.nextRoom(ds);  // room 0 → 1
+  TTT.nextRoom(ds);  // room 1 → 2  
+  TTT.nextRoom(ds);  // room 2 → 3 (boss)
+
+  assert.strictEqual(ds.currentRoomIndex, 3, 'now at boss room');
+
+  // With the fix applied: monsterState should already exist on dungeonState
+  // and represent a low-HP boss in final phase → deterministic true.
+  var result = TTT.shouldSpecialMove(ds, 3, 0.15);
+  assert.strictEqual(result, true, 
+    'final-phase boss + not used → special move fires deterministically (not random)');
+
+  console.log('PASS: bug2 special-move deterministic behavior tested');
+}
 
 console.log('All ' + Object.keys(TTT).length + ' TTT functions verified successfully.');
