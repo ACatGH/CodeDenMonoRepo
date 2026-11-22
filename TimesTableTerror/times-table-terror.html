@@ -266,6 +266,169 @@ html, body {
   z-index: 11; pointer-events: none;
 }
 
+/* ========== SETTINGS SCREEN ========== */
+#settings-screen {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: none; justify-content: center; align-items: center;
+  flex-direction: column; z-index: 42;
+  background: radial-gradient(ellipse at center, rgba(26,81,37,0.95) 0%, rgba(10,40,15,0.98) 100%);
+}
+#settings-screen.active { display: flex; }
+
+.settings-panel {
+  width: 600px; max-width: 90vw; max-height: 85vh;
+  overflow-y: auto; padding: 24px; border: 4px solid #5a3a20;
+  background: linear-gradient(to bottom, #4a3020, #3b2215);
+  color: white; box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.6);
+}
+
+.settings-panel h2 {
+  font-size: 32px; color: #FFD700; text-shadow: 2px 2px #000;
+  margin-bottom: 16px; text-align: center;
+}
+
+.settings-section {
+  margin-bottom: 14px; padding: 10px 12px;
+  background: rgba(0,0,0,0.3); border: 2px solid #5a3a20;
+}
+.settings-section h3 {
+  font-size: 16px; color: #FFD700; margin-bottom: 8px;
+  text-shadow: 1px 1px #000;
+}
+
+/* Slider controls */
+.slider-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.slider-row label {
+  font-size: 15px; min-width: 110px; text-shadow: 1px 1px #000;
+}
+.slider-row input[type="range"] {
+  flex: 1; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  height: 24px; background: #3b2215; border: 2px solid #5a3a20;
+}
+.slider-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 22px; height: 22px; cursor: pointer;
+  background: linear-gradient(to bottom, #FFD700, #E6A800);
+  border: 2px solid #8B4513;
+}
+.slider-row input[type="range"]::-moz-range-thumb {
+  width: 22px; height: 22px; cursor: pointer;
+  background: linear-gradient(to bottom, #FFD700, #E6A800);
+  border: 2px solid #8B4513;
+}
+.slider-value {
+  font-size: 16px; color: #4CAF50; min-width: 30px; text-align: center;
+  text-shadow: 1px 1px #000;
+}
+
+/* Preset buttons */
+.preset-row { display: flex; gap: 8px; }
+.preset-btn {
+  flex: 1; padding: 10px 6px; font-size: 15px; font-weight: bold;
+  border: 3px solid #5a3a20; cursor: pointer; color: white;
+  text-shadow: 1px 1px #000; background: linear-gradient(to bottom, #6B4F30, #4a3020);
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.5);
+  transition: transform 0.1s;
+}
+.preset-btn:hover { transform: scale(1.05); }
+.preset-btn.active {
+  background: linear-gradient(to bottom, #4CAF50, #2E7D32);
+  border-color: #1B5E20; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), 0 0 12px rgba(76,175,80,0.6);
+}
+
+/* Editable controls (time, lives) */
+.edit-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+}
+.edit-row label { font-size: 15px; min-width: 100px; text-shadow: 1px 1px #000; }
+.edit-controls {
+  display: flex; align-items: center; gap: 4px;
+}
+.minus-btn, .plus-btn {
+  width: 32px; height: 32px; font-size: 20px; font-weight: bold;
+  border: 3px solid #5a3a20; cursor: pointer; color: white;
+  background: linear-gradient(to bottom, #6B4F30, #4a3020);
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.4);
+}
+.minus-btn:hover, .plus-btn:hover { transform: scale(1.1); }
+.edit-value {
+  font-size: 20px; font-weight: bold; color: #FFD700;
+  min-width: 40px; text-align: center; text-shadow: 1px 1px #000;
+}
+
+/* Practice mode checkboxes */
+.practice-grid {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+}
+.table-chip {
+  padding: 8px 4px; font-size: 15px; font-weight: bold;
+  text-align: center; border: 3px solid #5a3a20; cursor: pointer;
+  background: linear-gradient(to bottom, #6B4F30, #4a3020);
+  color: white; text-shadow: 1px 1px #000;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.4);
+  transition: transform 0.1s;
+}
+.table-chip:hover { transform: scale(1.1); }
+.table-chip.selected {
+  background: linear-gradient(to bottom, #5DAE4F, #3D7A34);
+  border-color: #2D5A1E; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), 0 0 8px rgba(93,174,79,0.6);
+}
+
+/* Action buttons */
+.settings-actions {
+  display: flex; gap: 10px; margin-top: 12px; justify-content: center;
+}
+.settings-actions button {
+  padding: 12px 30px; font-size: 18px; font-weight: bold;
+  border: 3px solid #5a3a20; cursor: pointer; color: white;
+  background: linear-gradient(to bottom, #6B4F30, #4a3020);
+  text-shadow: 1px 1px #000;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.5);
+  transition: transform 0.1s;
+}
+.settings-actions button:hover { transform: scale(1.05); }
+.settings-actions .btn-save {
+  background: linear-gradient(to bottom, #4CAF50, #2E7D32);
+  border-color: #1B5E20;
+}
+.settings-actions .btn-cancel {
+  background: linear-gradient(to bottom, #8B4513, #6B4F30);
+  border-color: #5a3a20;
+}
+
+/* Hero select settings link */
+.hero-card + .settings-link-row {
+  margin-top: 10px; text-align: center;
+}
+.go-to-settings-btn {
+  padding: 10px 24px; font-size: 16px; font-weight: bold;
+  border: 3px solid #FFD700; cursor: pointer; color: #FFD700;
+  background: rgba(0,0,0,0.4); text-shadow: 1px 1px #000;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.5);
+  transition: transform 0.1s;
+}
+.go-to-settings-btn:hover {
+  background: rgba(255,215,0,0.2); transform: scale(1.05);
+}
+
+/* Number input helper */
+input[type="number"] {
+  width: 60px; padding: 6px; font-size: 18px; font-weight: bold;
+  text-align: center; border: 3px solid #5a3a20;
+  background: #3b2215; color: #FFD700;
+  font-family: 'Arial Black', Impact, sans-serif;
+}
+
+/* Range label chips */
+.range-labels {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: #aaa; margin-top: -2px; margin-bottom: 4px;
+}
+
+/* Range label chips */
 </style>
 </head>
 <body>
@@ -342,6 +505,78 @@ html, body {
       <span class="emoji">🦖</span>
       <h3>Grapefruit</h3>
       <p>🛡️ Tanky<br>❤️ 150 HP<br>💪 Solid damage<br>✨ Chomp!</p>
+    </div>
+    <div class="settings-link-row">
+      <button class="go-to-settings-btn" id="open-settings-btn">⚙️ Settings</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS SCREEN OVERLAY -->
+  <div id="settings-screen">
+    <div class="settings-panel">
+      <h2>⚙️ Settings ⚙️</h2>
+
+      <!-- Section: Table Range -->
+      <div class="settings-section">
+        <h3>Times Table Range</h3>
+        <div class="slider-row">
+          <label>Min table:</label>
+          <input type="range" id="range-min" min="1" max="12" value="1" step="1">
+          <span class="slider-value" id="range-min-val">×1</span>
+        </div>
+        <div class="slider-row">
+          <label>Max table:</label>
+          <input type="range" id="range-max" min="1" max="12" value="5" step="1">
+          <span class="slider-value" id="range-max-val">×5</span>
+        </div>
+      </div>
+
+      <!-- Section: Difficulty Presets -->
+      <div class="settings-section">
+        <h3>Difficulty Preset</h3>
+        <div class="preset-row">
+          <button class="preset-btn" id="preset-easy">😊 Easy</button>
+          <button class="preset-btn" id="preset-medium">🤔 Medium</button>
+          <button class="preset-btn" id="preset-hard">😈 Hard</button>
+        </div>
+        <p style="font-size:12px;color:#aaa;margin-top:6px;text-align:center;" id="preset-desc"></p>
+      </div>
+
+      <!-- Section: Questions Per Level -->
+      <div class="settings-section">
+        <h3>Questions Per Level</h3>
+        <div class="slider-row">
+          <label>Count:</label>
+          <input type="range" id="qpl-slider" min="5" max="30" value="10" step="1">
+          <span class="slider-value" id="qpl-val">10</span>
+        </div>
+      </div>
+
+      <!-- Section: Time Limit & Lives -->
+      <div class="settings-section">
+        <h3>Time Limit &amp; Lives</h3>
+        <div class="slider-row" style="align-items:center;">
+          <label for="time-input">Time (sec):</label>
+          <input type="number" id="time-input" min="1" max="120" value="15" step="1" style="width:70px;">
+        </div>
+        <div class="slider-row" style="align-items:center;">
+          <label for="lives-input">Lives:</label>
+          <input type="number" id="lives-input" min="1" max="10" value="3" step="1" style="width:70px;">
+        </div>
+      </div>
+
+      <!-- Section: Practice Mode -->
+      <div class="settings-section">
+        <h3>Practice Mode Tables</h3>
+        <p style="font-size:12px;color:#aaa;margin-bottom:6px;">Click to pick which tables to practice.</p>
+        <div class="practice-grid" id="practice-grid"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="settings-actions">
+        <button class="btn-cancel" id="settings-cancel-btn">Cancel</button>
+        <button class="btn-save" id="settings-save-btn">💾 Save &amp; Play</button>
+      </div>
     </div>
   </div>
   <!-- Win screen overlay -->
@@ -1717,8 +1952,436 @@ html, body {
     }
   });
 
+  // =============================================
+  // --- SETTINGS MODULE (inline, no external deps) ---
+  // =============================================
+
+  var TTT_Settings = (function() {
+    'use strict';
+
+    var DEFAULT_SETTINGS = Object.freeze({
+      range:             { min: 1, max: 5 },
+      questionsPerLevel: 10,
+      timeLimitSec:     15,
+      lives:              3,
+      practiceTables:   [],
+      preset:           'Easy'
+    });
+
+    var PRESETS = Object.freeze({
+      Easy: {
+        range:             { min: 1, max: 5 },
+        questionsPerLevel: 10,
+        timeLimitSec:     15,
+        lives:              3
+      },
+      Medium: {
+        range:             { min: 3, max: 7 },
+        questionsPerLevel: 12,
+        timeLimitSec:     10,
+        lives:              3
+      },
+      Hard: {
+        range:             { min: 5, max: 12 },
+        questionsPerLevel: 15,
+        timeLimitSec:      7,
+        lives:              2
+      }
+    });
+
+    function clamp(val, lo, hi) {
+      if (typeof val !== 'number' || !Number.isFinite(val)) return null;
+      var floored = Math.floor(val);
+      if (floored < lo || floored > hi) return null;
+      return floored;
+    }
+
+    function clampForced(val, lo, hi) {
+      if (typeof val !== 'number' || !Number.isFinite(val)) return null;
+      return Math.max(lo, Math.min(hi, Math.floor(val)));
+    }
+
+    /** Clamp all fields of `input` to sensible bounds. Returns a fresh object. */
+    function clampSettings(input, defaults) {
+      defaults = Object.assign({}, DEFAULT_SETTINGS, defaults);
+      var rangeInput = (input && input.range && typeof input.range === 'object' && !Array.isArray(input.range))
+        ? input.range : null;
+      var min, max;
+      if (rangeInput) {
+        min = (typeof rangeInput.min === 'number' && Number.isFinite(rangeInput.min)) ? rangeInput.min : defaults.range.min;
+        max = (typeof rangeInput.max === 'number' && Number.isFinite(rangeInput.max)) ? rangeInput.max : defaults.range.max;
+      } else if (input) {
+        min = (typeof input.min === 'number' && Number.isFinite(input.min)) ? input.min : defaults.range.min;
+        max = (typeof input.max === 'number' && Number.isFinite(input.max)) ? input.max : defaults.range.max;
+      } else {
+        min = defaults.range.min;
+        max = defaults.range.max;
+      }
+      if (min < 1) min = 1;
+      if (max > 12) max = 12;
+      if (min > max) { var tmp = min; min = max; max = tmp; }
+
+      function getNumeric(topKey, rangeKey) {
+        var ri = rangeInput && typeof rangeInput[rangeKey] === 'number' && Number.isFinite(rangeInput[rangeKey])
+          ? rangeInput[rangeKey] : null;
+        return ri != null ? ri : (input && typeof input[topKey] === 'number' && Number.isFinite(input[topKey])
+          ? input[topKey] : undefined);
+      }
+
+      var qpl = getNumeric('questionsPerLevel', 'questionsPerLevel');
+      qpl = qpl != null ? clampForced(qpl, 1, 50) : defaults.questionsPerLevel;
+      var tsec = getNumeric('timeLimitSec', 'timeLimitSec');
+      tsec = tsec != null ? clampForced(tsec, 1, 120) : defaults.timeLimitSec;
+      var lives = getNumeric('lives', 'lives');
+      lives = lives != null ? clampForced(lives, 1, 10) : defaults.lives;
+
+      var practiceTables = [];
+      if (input && Array.isArray(input.practiceTables)) {
+        var set2 = new Set();
+        for (var i2 = 0; i2 < input.practiceTables.length; i2++) {
+          var t2 = input.practiceTables[i2];
+          var c2 = clamp(t2, 1, 12);
+          if (c2 != null && !set2.has(c2)) set2.add(c2);
+        }
+        practiceTables = (function(arr) { arr.sort(function(a, b) { return a - b; }); return arr; })(Array.from(set2));
+      }
+
+      var pname = (input && typeof input.preset === 'string' && PRESETS[input.preset])
+        ? input.preset : defaults.preset;
+
+      return {
+        range:             { min: min, max: max },
+        questionsPerLevel: qpl,
+        timeLimitSec:     tsec,
+        lives:             lives,
+        practiceTables:   practiceTables,
+        preset:           pname
+      };
+    }
+
+    /** Apply a preset's values over `current` settings (returns fresh object). */
+    function applyPreset(name, current) {
+      var base = Object.assign({}, DEFAULT_SETTINGS, current || {});
+      var p = PRESETS[name];
+      if (p) {
+        base.range             = Object.assign({}, base.range, p.range);
+        base.questionsPerLevel = p.questionsPerLevel != null ? p.questionsPerLevel : base.questionsPerLevel;
+        base.timeLimitSec      = p.timeLimitSec     != null ? p.timeLimitSec     : base.timeLimitSec;
+        base.lives             = p.lives            != null ? p.lives            : base.lives;
+      }
+      return clampSettings(base);
+    }
+
+    /** Build practice-tables list from user picks. */
+    function buildPracticeTables(picks, defaultRange) {
+      if (!Array.isArray(picks) || picks.length === 0) {
+        var r = defaultRange || DEFAULT_SETTINGS.range;
+        var tables = [];
+        for (var j = r.min; j <= Math.min(r.max, 12); j++) { tables.push(j); }
+        return tables;
+      }
+      var set3 = new Set();
+      for (var k = 0; k < picks.length; k++) {
+        var c3 = clamp(picks[k], 1, 12);
+        if (c3 != null && !set3.has(c3)) set3.add(c3);
+      }
+      return (function(arr) { arr.sort(function(a, b) { return a - b; }); return arr; })(Array.from(set3));
+    }
+
+    /** Get the localStorage key. */
+    function getStorageKey() { return 'ttt_settings'; }
+
+    return { DEFAULT_SETTINGS: DEFAULT_SETTINGS, PRESETS: PRESETS, clamp: clamp, clampForced: clampForced,
+             clampSettings: clampSettings, applyPreset: applyPreset, buildPracticeTables: buildPracticeTables,
+             getStorageKey: getStorageKey };
+  })();
+
+  // --- SETTINGS STATE (loaded from localStorage) ---
+  var _settings = null;  // current settings object
+  var _practiceTablesSelected = [];  // UI tracking for practice mode
+
+  /** Load settings from localStorage. */
+  function loadSettings() {
+    try {
+      var raw = localStorage.getItem(TTT_Settings.getStorageKey());
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          _settings = TTT_Settings.clampSettings(parsed);
+        } else {
+          _settings = JSON.parse(JSON.stringify(TTT_Settings.DEFAULT_SETTINGS));
+        }
+      } else {
+        _settings = JSON.parse(JSON.stringify(TTT_Settings.DEFAULT_SETTINGS));
+      }
+    } catch(e) {
+      _settings = JSON.parse(JSON.stringify(TTT_Settings.DEFAULT_SETTINGS));
+    }
+  }
+
+  /** Save settings to localStorage. */
+  function saveSettingsToStorage(settings) {
+    try {
+      localStorage.setItem(TTT_Settings.getStorageKey(), JSON.stringify(settings));
+    } catch(e) {}
+  }
+
+  // --- SETTINGS UI FUNCTIONS ---
+
+  /** Update all slider value displays and number inputs from _settings. */
+  function updateSlidersFromSettings() {
+    if (!_settings) return;
+    var rangeMinEl = document.getElementById('range-min');
+    var rangeMaxEl = document.getElementById('range-max');
+    var qplSliderEl = document.getElementById('qpl-slider');
+    var rangeMinValEl = document.getElementById('range-min-val');
+    var rangeMaxValEl = document.getElementById('range-max-val');
+    var qplValEl = document.getElementById('qpl-val');
+    var timeInputEl = document.getElementById('time-input');
+    var livesInputEl = document.getElementById('lives-input');
+
+    if (rangeMinEl) { rangeMinEl.value = _settings.range.min; rangeMinValEl.textContent = '\u00d7' + _settings.range.min; }
+    if (rangeMaxEl) { rangeMaxEl.value = _settings.range.max; rangeMaxValEl.textContent = '\u00d7' + _settings.range.max; }
+    if (qplSliderEl) { qplSliderEl.value = _settings.questionsPerLevel; qplValEl.textContent = _settings.questionsPerLevel; }
+    if (timeInputEl) { timeInputEl.value = String(_settings.timeLimitSec); }
+    if (livesInputEl) { livesInputEl.value = String(_settings.lives); }
+
+    // Update preset buttons
+    updatePresetButtons();
+  }
+
+  /** Mark the current preset button as active. */
+  function updatePresetButtons() {
+    var presetBtns = document.querySelectorAll('.preset-btn');
+    for (var i = 0; i < presetBtns.length; i++) {
+      presetBtns[i].classList.remove('active');
+    }
+    if (_settings && _settings.preset) {
+      var presetMap = { 'Easy': 'preset-easy', 'Medium': 'preset-medium', 'Hard': 'preset-hard' };
+      var activeId = presetMap[_settings.preset];
+      if (activeId) {
+        var activeBtn = document.getElementById(activeId);
+        if (activeBtn) activeBtn.classList.add('active');
+      }
+    }
+  }
+
+  /** Build the practice mode table picker grid. */
+  function buildPracticeGrid() {
+    var grid = document.getElementById('practice-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    _practiceTablesSelected = _settings.practiceTables ? _settings.practiceTables.slice() : [];
+
+    for (var t = 1; t <= 12; t++) {
+      var chip = document.createElement('div');
+      chip.className = 'table-chip' + (_practiceTablesSelected.indexOf(t) >= 0 ? ' selected' : '');
+      chip.textContent = '\u00d7' + t;
+      chip.setAttribute('data-table', String(t));
+      chip.setAttribute('tabindex', '0');
+      chip.setAttribute('role', 'button');
+      chip.setAttribute('aria-pressed', (_practiceTablesSelected.indexOf(t) >= 0 ? 'true' : 'false'));
+
+      chip.addEventListener('click', (function(tbl) {
+        return function() {
+          var idx = _practiceTablesSelected.indexOf(tbl);
+          if (idx >= 0) {
+            _practiceTablesSelected.splice(idx, 1);
+            chip.classList.remove('selected');
+            chip.setAttribute('aria-pressed', 'false');
+          } else {
+            _practiceTablesSelected.push(tbl);
+            chip.classList.add('selected');
+            chip.setAttribute('aria-pressed', 'true');
+          }
+        };
+      })(t));
+
+      chip.addEventListener('keydown', (function(tbl) {
+        return function(e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            chip.click();
+          }
+        };
+      })(t));
+
+      grid.appendChild(chip);
+    }
+  }
+
+  /** Open the settings screen overlay. */
+  function openSettingsScreen() {
+    loadSettings();
+    updateSlidersFromSettings();
+    buildPracticeGrid();
+    document.getElementById('hero-select').style.display = 'none';
+    document.getElementById('settings-screen').classList.add('active');
+  }
+
+  /** Close settings screen and return to hero select (without saving). */
+  function closeSettingsScreen() {
+    document.getElementById('settings-screen').classList.remove('active');
+    document.getElementById('hero-select').style.display = 'flex';
+  }
+
+  /** Save settings, apply them to gameState.cfg, and return to hero select. */
+  function saveAndApplySettings() {
+    // Build the current settings from slider/button values
+    var rangeMinVal = parseInt(document.getElementById('range-min').value) || 1;
+    var rangeMaxVal = parseInt(document.getElementById('range-max').value) || 5;
+    var qplVal = parseInt(document.getElementById('qpl-slider').value) || 10;
+    // Time and lives now use <input type="number"> elements
+    var timeInputEl = document.getElementById('time-input');
+    var livesInputEl = document.getElementById('lives-input');
+    var timeVal = (timeInputEl && timeInputEl.value) ? parseInt(timeInputEl.value, 10) : 15;
+    var livesVal = (livesInputEl && livesInputEl.value) ? parseInt(livesInputEl.value, 10) : 3;
+
+    // Clamp range: min <= max
+    if (rangeMinVal > rangeMaxVal) {
+      rangeMaxVal = rangeMinVal;
+      document.getElementById('range-max').value = rangeMaxVal;
+    }
+
+    var currentSettings = TTT_Settings.clampSettings({
+      range:             { min: rangeMinVal, max: rangeMaxVal },
+      questionsPerLevel: qplVal,
+      timeLimitSec:     timeVal,
+      lives:              livesVal,
+      practiceTables:   _practiceTablesSelected.slice(),
+      preset:           _settings ? _settings.preset : 'Easy'
+    });
+
+    // Persist to localStorage
+    saveSettingsToStorage(currentSettings);
+
+    // Apply to gameState for next game run
+    gameState.cfg = {
+      minTable: currentSettings.range.min,
+      maxTable: currentSettings.range.max,
+      timeLimit: currentSettings.timeLimitSec
+    };
+    gameState.difficulty = currentSettings.preset;
+    gameState.questionsPerLevel = currentSettings.questionsPerLevel;
+    gameState.lives = currentSettings.lives;
+
+    // Close settings, return to hero select
+    closeSettingsScreen();
+  }
+
+  // =============================================
   // --- GAME INITIALIZATION ---
+  // =============================================
+
   function init() {
+    loadSettings();
+
+    // Set initial cfg from loaded settings
+    if (_settings) {
+      gameState.cfg = {
+        minTable: _settings.range.min,
+        maxTable: _settings.range.max,
+        timeLimit: _settings.timeLimitSec
+      };
+      gameState.difficulty = _settings.preset;
+      gameState.questionsPerLevel = _settings.questionsPerLevel;
+      gameState.lives = _settings.lives;
+    }
+
+    // --- EVENT BINDINGS ---
+
+    // Hero select -> open settings
+    var openSettingsBtn = document.getElementById('open-settings-btn');
+    if (openSettingsBtn) {
+      openSettingsBtn.addEventListener('click', function() {
+        openSettingsScreen();
+      });
+    }
+
+    // Settings screen controls: sliders
+    var rangeMinSlider = document.getElementById('range-min');
+    if (rangeMinSlider) {
+      rangeMinSlider.addEventListener('input', function() {
+        var val = parseInt(this.value);
+        document.getElementById('range-min-val').textContent = '\u00d7' + val;
+        // If min exceeds max, adjust max down
+        if (val > parseInt(document.getElementById('range-max').value)) {
+          document.getElementById('range-max').value = val;
+          updateSlidersFromSettings();
+        }
+      });
+    }
+
+    var rangeMaxSlider = document.getElementById('range-max');
+    if (rangeMaxSlider) {
+      rangeMaxSlider.addEventListener('input', function() {
+        var val = parseInt(this.value);
+        document.getElementById('range-max-val').textContent = '\u00d7' + val;
+        // If max goes below min, adjust min up
+        if (val < parseInt(document.getElementById('range-min').value)) {
+          document.getElementById('range-min').value = val;
+          updateSlidersFromSettings();
+        }
+      });
+    }
+
+    var qplSlider = document.getElementById('qpl-slider');
+    if (qplSlider) {
+      qplSlider.addEventListener('input', function() {
+        document.getElementById('qpl-val').textContent = this.value;
+      });
+    }
+
+    // Preset buttons — use applyPreset from TTT_Settings module (verbatim)
+    var presetBtnIds = ['preset-easy', 'preset-medium', 'preset-hard'];
+    var presetNames  = ['Easy', 'Medium', 'Hard'];
+    for (var pi = 0; pi < presetBtnIds.length; pi++) {
+      (function(btnId, presetName) {
+        var btn = document.getElementById(btnId);
+        if (btn) {
+          btn.addEventListener('click', function() {
+            // Call applyPreset from the module and update UI from result
+            var applied = TTT_Settings.applyPreset(presetName, _settings);
+            var rangeMinEl  = document.getElementById('range-min');
+            var rangeMaxEl  = document.getElementById('range-max');
+            var rangeMinVal = document.getElementById('range-min-val');
+            var rangeMaxVal = document.getElementById('range-max-val');
+            if (rangeMinEl) { rangeMinEl.value = applied.range.min; }
+            if (rangeMaxEl) { rangeMaxEl.value = applied.range.max; }
+            if (rangeMinVal) { rangeMinVal.textContent = '\u00d7' + applied.range.min; }
+            if (rangeMaxVal) { rangeMaxVal.textContent = '\u00d7' + applied.range.max; }
+            var qplSliderEl  = document.getElementById('qpl-slider');
+            var qplValEl     = document.getElementById('qpl-val');
+            if (qplSliderEl) { qplSliderEl.value = applied.questionsPerLevel; }
+            if (qplValEl)    { qplValEl.textContent    = String(applied.questionsPerLevel); }
+            // Update time/lives inputs (now number inputs)
+            var timeInput = document.getElementById('time-input');
+            var livesInput = document.getElementById('lives-input');
+            if (timeInput)  { timeInput.value     = applied.timeLimitSec; }
+            if (livesInput) { livesInput.value    = String(applied.lives); }
+            _settings = applied;
+            updatePresetButtons();
+          });
+        }
+      })(presetBtnIds[pi], presetNames[pi]);
+    }
+
+    // Save & Cancel buttons
+    var saveBtn = document.getElementById('settings-save-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function() {
+        saveAndApplySettings();
+      });
+    }
+
+    var cancelBtn = document.getElementById('settings-cancel-btn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function() {
+        closeSettingsScreen();
+      });
+    }
+
+    // --- GAME STATE INIT ---
     gameState.screen = 'select';
     updateHUD();
     showHeroSelectScreen();
