@@ -310,7 +310,48 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
 }
 
 // ------------------------------------------------------------------
-// Done
+// DONE — External-reference scan (criterion 7)
+// ------------------------------------------------------------------
+
+// The HTML must contain zero external references: no http(s) URLs,
+// CDN imports, @font-face declarations, url() in styles,
+// script src attributes, or link href tags.
+{
+  const group = 'no external references in HTML';
+
+  // Check for HTTP(S) URLs (allow data-URIs, self-referencing ones)
+  const httpMatches = html.match(/https?:\/\/[^"'\s]*/gi);
+  assert.ok(!httpMatches, 'no http(s) URLs found — ' + (httpMatches ? httpMatches.join(', ') : ''));
+
+  // Check for @font-face declarations
+  const fontFaceMatches = html.match(/@font-face\s*{/i);
+  assert.ok(!fontFaceMatches, 'no @font-face declarations found');
+
+  // Check for CDN imports
+  const cdnMatches = html.match(/cdn[.\-_]/i);
+  assert.ok(!cdnMatches, 'no CDN references found');
+
+  // Check for url() with external paths (allow data:, #, or non-http)
+  const urlMatches = html.match(/url\(\s*['"]?(?!data:)[^'")\s]*(?::\/\/)/gi) || [];
+  assert.ok(urlMatches.length === 0, 'no external url() calls found');
+
+  // Check for script src attributes
+  const scriptSrcMatches = html.match(/<script\s[^>]*\bsrc\b\s*=/i);
+  assert.ok(!scriptSrcMatches, 'no script src attributes found');
+
+  // Check for link href (external stylesheets)
+  const linkHrefMatches = html.match(/<link\s[^>]*\bhref\s*=\s*['"]?(?!data:|#)[^'"\s]*:\/\/[^'"\s]*/gi);
+  assert.ok(linkHrefMatches === null || linkHrefMatches.length === 0, 'no external link href attributes found');
+
+  // Check for audio/image source URLs in canvas/element sources
+  const audioSrcMatches = html.match(/<audio\s[^>]*\bsrc\b/i);
+  assert.ok(!audioSrcMatches, 'no <audio src> elements found');
+
+  console.log('PASS: HTML is free of external references');
+}
+
+// ------------------------------------------------------------------
+// DONE
 // ------------------------------------------------------------------
 
 console.log('All ' + Object.keys(TTT).length + ' TTT functions verified successfully.');

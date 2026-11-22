@@ -5,19 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Times Table Terror</title>
 <style>
-/* === BLOCKY MINECRAFT-STYLE STYLES === */
+/* === BLOCKY GAME-STYLE STYLES === */
 * { margin: 0; padding: 0; box-sizing: border-box; }
-
-@font-face {
-  font-family: 'GameBlock';
-  src: local('Arial Black'), local('Impact'), local('sans-serif');
-}
 
 html, body {
   width: 100%; height: 100%;
   overflow: hidden;
   background: #2C1810;
-  font-family: 'GameBlock', Arial Black, Impact, sans-serif;
+  font-family: 'Arial Black', Impact, sans-serif;
   -webkit-font-smoothing: none;
 }
 
@@ -564,7 +559,7 @@ html, body {
       ctx.scale(1.15, 1.15);
     }
 
-    // Body (stacked cubes — blocky Minecraft style)
+    // Body (stacked cubes — blocky game style)
     // Main body
     ctx.fillStyle = color1;
     var bw = size * 0.7, bh = size * 0.8;
@@ -1177,7 +1172,7 @@ html, body {
 
     clearCanvas();
 
-    // Draw room info (background blocks for Minecraft feel)
+    // Draw room info (background blocks for game feel)
     // Background grass blocks
     var blockSize = 40;
     ctx.fillStyle = '#6AAE37';

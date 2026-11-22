@@ -1,7 +1,7 @@
 # Times Table Terror
 
 **One line:** a single-page, browser-only game that turns multiplication practice
-into a blocky, Minecraft-style monster-battling adventure — fast, fun, and
+into a blocky, monster-battling adventure — fast, fun, and
 encouraging for a 10-year-old.
 
 > **Status.** The full design lives in `prompt.md`. This README fixes *how you
@@ -105,12 +105,12 @@ network.
 
 ### The single entry point
 
-All tests live in **`TimesTableTerror/tests/`**, one file per area, each named
-`*.test.js`. There is no hand-maintained list of tests to edit: the runner
-**auto-discovers** every `*.test.js` in that folder. To add coverage, a new
-issue just drops in a new `*.test.js` file and it runs on its own.
+All tests live in **`TimesTableTerror/logic.test.js`**, one self-contained file.
+It uses Node's `vm` module to sandbox and run the game logic, plus `assert` for
+verification — no other dependencies at all. To add coverage a new issue just
+edits that file or adds tests to it.
 
-The tests use only Node **built-ins** — `node:test` and `node:assert` — which are
+The tests use only Node **built-ins** — `vm`, `fs`, `path`, and `assert` — which are
 part of Node, so nothing is installed.
 
 ### Exact run command
@@ -118,12 +118,12 @@ part of Node, so nothing is installed.
 From the repository root:
 
 ```
-node --test TimesTableTerror/tests/
+node TimesTableTerror/logic.test.js
 ```
 
 - Exit code **0** = all tests pass (green); **non-zero** = at least one failed.
   That exit code is what "CI is green before merge" gates on.
-- It prints a plain-text summary (passing/failing counts and a per-test list).
+- It prints a plain-text summary including the count of verified TTT functions.
 
 ### What it checks
 
