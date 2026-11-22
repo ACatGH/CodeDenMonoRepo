@@ -1,0 +1,1 @@
+All 22 TTT tests passing. Rewrite complete per reviewer spec.
