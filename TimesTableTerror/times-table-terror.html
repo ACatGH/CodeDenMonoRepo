@@ -197,11 +197,11 @@ html, body {
   position: absolute; top: 0; left: 0; right: 0; bottom: 0;
   display: none; justify-content: center; align-items: center;
   flex-direction: column; z-index: 45;
-  background: radial-gradient(ellipse at center, rgba(80,10,10,0.95) 0%, rgba(30,5,5,0.98) 100%);
+  background: radial-gradient(ellipse at center, rgba(30,20,60,0.95) 0%, rgba(15,10,30,0.98) 100%);
 }
 .game-over-overlay.active { display: flex; }
 .game-over-overlay h1 {
-  font-size: 56px; color: #FF5722; text-shadow: 3px 3px #000;
+  font-size: 56px; color: #FFB74D; text-shadow: 2px 2px #3E2723;
   margin-bottom: 20px; animation: popIn 0.6s ease-out;
 }
 .game-over-overlay p {
@@ -643,9 +643,9 @@ input[type="number"] {
     };
 
     var DIFFICULTY_PRESETS = {
-      easy:   { minTable: 1, maxTable: 5, timeLimit: 15 },
-      medium: { minTable: 3, maxTable: 7, timeLimit: 12 },
-      hard:   { minTable: 5, maxTable: 9, timeLimit: 9 }
+      Easy:   { minTable: 1, maxTable: 5, timeLimit: 15 },
+      Medium: { minTable: 3, maxTable: 7, timeLimit: 12 },
+      Hard:   { minTable: 5, maxTable: 9, timeLimit: 9 }
     };
 
     // --- QUESTION GENERATION ---
@@ -654,12 +654,28 @@ input[type="number"] {
       var minT = (cfg && cfg.minTable != null) ? cfg.minTable : 1;
       var maxT = (cfg && cfg.maxTable != null) ? cfg.maxTable : 5;
 
+      // If practiceTables is set, only generate questions for those tables
+      var ptSet = null;
+      if (cfg && cfg.practiceTables && cfg.practiceTables.length > 0) {
+        ptSet = {};
+        for (var _i = 0; _i < cfg.practiceTables.length; _i++) {
+          ptSet[cfg.practiceTables[_i]] = true;
+        }
+      }
+
       // Pick two numbers in range
       function pickIn(rngFn) {
         return Math.floor(rngFn() * (maxT - minT + 1)) + minT;
       }
-      var a = pickIn(rng);
-      var b = pickIn(rng);
+
+      var a, b;
+      var attempts = 0;
+      do {
+        a = pickIn(rng);
+        b = pickIn(rng);
+        attempts++;
+        if (attempts > 50) break; // fallback after many attempts
+      } while (ptSet && !(ptSet[a] && ptSet[b]));
 
       var answer = a * b;
 
@@ -761,10 +777,21 @@ input[type="number"] {
 
     // --- TIME LIMIT FOR DIFFICULTY ---
     function timeLimitFor(cfg) {
-      var preset = DIFFICULTY_PRESETS[cfg && cfg.difficulty] || DIFFICULTY_PRESETS.easy;
-      // User-set time limit takes priority over difficulty presets
-      if (cfg && typeof cfg.timeLimit === 'number' && Number.isFinite(cfg.timeLimit)) return cfg.timeLimit;
-      return preset.timeLimit;
+      if (!cfg || typeof cfg.timeLimit !== 'number' || !Number.isFinite(cfg.timeLimit)) {
+        var key = (cfg && cfg.difficulty) ? String(cfg.difficulty) : '';
+        var preset = DIFFICULTY_PRESETS[key];
+        if (preset && preset.timeLimit != null) return preset.timeLimit;
+        // Normalise first letter to uppercase
+        if (key.length > 0) {
+          var normalized = key.charAt(0).toUpperCase() + key.slice(1);
+          preset = DIFFICULTY_PRESETS[normalized];
+          if (preset && preset.timeLimit != null) return preset.timeLimit;
+        }
+        // Fallback to first available preset
+        var fallbackKey = Object.keys(DIFFICULTY_PRESETS)[0];
+        return DIFFICULTY_PRESETS[fallbackKey].timeLimit;
+      }
+      return cfg.timeLimit;
     }
     TTT.timeLimitFor = timeLimitFor;
 
@@ -955,7 +982,7 @@ input[type="number"] {
     timerActive: false,
     timerInterval: null,
     difficulty: 'medium',
-    cfg: { minTable: 3, maxTable: 7, timeLimit: 12 },
+    cfg: { minTable: 3, maxTable: 7, timeLimit: 12, practiceTables: [] },
     particles: [],         // active particle effects
     shakeDuration: 0,
     shakeOffset: { x: 0, y: 0 },
@@ -1576,8 +1603,8 @@ input[type="number"] {
     var room = TTT.ROOMS[roomIdx];
     var q;
     if (room && room.isBoss) {
-      // Boss rooms get questions from the full table range via makeRoomQuestions
-      q = TTT.makeRoomQuestions(roomIdx, 1)[0] || TTT.makeQuestion(gameState.cfg);
+      // Boss rooms get questions from the player's practice tables
+      q = TTT.makeQuestion(gameState.cfg);
     } else {
       q = TTT.makeQuestion(gameState.cfg);
     }
@@ -1778,10 +1805,10 @@ input[type="number"] {
 
     var titleEl = document.getElementById('game-over-title');
     var subEl = document.getElementById('game-over-subtitle');
-    if (titleEl) titleEl.textContent = 'Game Over';
+    if (titleEl) titleEl.textContent = "Let's Try Again!";
     if (subEl) {
       subEl.innerHTML =
-        'You ran out of lives.<br>' +
+        'Keep practicing — you can do it!<br>' +
         'XP earned: <strong>' + gameState.totalXp + '</strong> | ' +
         'Coins collected: <strong>' + gameState.coins + ' 🪙</strong>';
     }
@@ -2212,7 +2239,7 @@ input[type="number"] {
       chip.setAttribute('role', 'button');
       chip.setAttribute('aria-pressed', (_practiceTablesSelected.indexOf(t) >= 0 ? 'true' : 'false'));
 
-      chip.addEventListener('click', (function(tbl) {
+      chip.addEventListener('click', (function(tbl, chip) {
         return function() {
           var idx = _practiceTablesSelected.indexOf(tbl);
           if (idx >= 0) {
@@ -2225,7 +2252,7 @@ input[type="number"] {
             chip.setAttribute('aria-pressed', 'true');
           }
         };
-      })(t));
+      })(t, chip));
 
       chip.addEventListener('keydown', (function(tbl) {
         return function(e) {
@@ -2289,7 +2316,8 @@ input[type="number"] {
     gameState.cfg = {
       minTable: currentSettings.range.min,
       maxTable: currentSettings.range.max,
-      timeLimit: currentSettings.timeLimitSec
+      timeLimit: currentSettings.timeLimitSec,
+      practiceTables: currentSettings.practiceTables ? currentSettings.practiceTables.slice() : []
     };
     gameState.difficulty = currentSettings.preset;
     gameState.questionsPerLevel = currentSettings.questionsPerLevel;
@@ -2311,7 +2339,8 @@ input[type="number"] {
       gameState.cfg = {
         minTable: _settings.range.min,
         maxTable: _settings.range.max,
-        timeLimit: _settings.timeLimitSec
+        timeLimit: _settings.timeLimitSec,
+        practiceTables: _settings.practiceTables ? _settings.practiceTables.slice() : []
       };
       gameState.difficulty = _settings.preset;
       gameState.questionsPerLevel = _settings.questionsPerLevel;
