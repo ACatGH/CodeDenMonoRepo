@@ -823,7 +823,7 @@ input[type="number"] {
       return 2;
     }
 
-    function shouldSpecialMove(dungeonState, roomNumber, specialMoveChance) {
+    function shouldSpecialMove(dungeonState, roomNumber) {
       var room = ROOMS[roomNumber];
       if (!room || !room.isBoss) return false;
       if (dungeonState && dungeonState.bossSpecialUsed) return false;
@@ -1628,7 +1628,7 @@ input[type="number"] {
       var roomIdx = gameState.currentRoomIndex || 0;
       var roomDef = TTT.ROOMS[roomIdx];
       var chance = roomDef ? roomDef.specialMoveChance : 0;
-      if (chance > 0 && TTT.shouldSpecialMove(gameState.dungeonState, roomIdx, chance)) {
+      if (chance > 0 && TTT.shouldSpecialMove(gameState.dungeonState, roomIdx)) {
         gameState.dungeonState.bossSpecialUsed = true;
         // Speed up timer by 30% — reduce remaining time
         var oldTime = gameState.timerValue;
