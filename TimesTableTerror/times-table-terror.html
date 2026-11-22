@@ -805,7 +805,7 @@ input[type="number"] {
       // Deterministic in final phase: when monster HP <= 0 (final phase reached), always trigger
       var ms = dungeonState && dungeonState.monsterState;
       if (ms && getPhase(ms, (ms.maxHp || 1) - ms.hp) === 2) return true;
-      return Math.random() < specialMoveChance;
+      return false;
     }
 
     function isBossDefeated(monsterState) {
