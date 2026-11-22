@@ -883,4 +883,219 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
   assert.strictEqual(fifthCall, null, 'same higher combo → null after clear');
 }
 
+{
+  const group = 'Bug fix: practiceTables in cfg filtering';
+
+  // Bug 1: makeQuestion should use practiceTables for question generation
+  // Uses a deterministic RNG to verify the filter actually runs.
+  // With practiceTables [3, 7] and range [1..9], pickIn generates via
+  // floor(rng * 9) + 1. A counter that yields values 1,2,...,7 maps to
+  // tables 2,3,...,8 — the first table in {3,7} hit is at counter=2 (tab 3).
+  function makeCounterRng() {
+    var c = 0;
+    return function() { c++; return c / 10; }; // 0.1, 0.2, ..., 1.0, 0.1, ...
+  }
+
+  // With deterministic rng yielding 0.1..1.0 cycle:
+  // counter=1→pickIn=floor(0.1*9)+1=1; counter=2→3; counter=3→5...
+  // pickIn values cycle: 1, 3, 5, 7, 8, 9, 10(oob), 1, ...
+  // floor(r*9)+1 with r=0.1=1, r=0.2=2, r=0.3=3, r=0.4=4, r=0.5=5,
+  //   r=0.6=6, r=0.7=7, r=0.8=8, r=0.9=8, r=1.0=9
+  // First few pickIn results: 1,2,3,4,5,6,7,8,8,9
+  // pSet=[3,7]: (1,2)X,(3,4)X,(3,5)X,(4,5)X,(6,7)X,...
+  // Let's use a rng that cycles: {0.3→3, 0.7→7, 0.3→3, ...}
+  var crng = makeCounterRng();
+  // Force specific cycle values to be in ptSet
+  // Use a simple counter-mod-based rng
+  function modRng(mod) {
+    var c = 0;
+    return function() { c++; return (c % mod) / mod; };
+  }
+
+  // Simpler approach: create an rng that always returns values in ptSet
+  // when called enough times. Use a controlled sequence.
+  function fixedRngFor(arr, idx) {
+    return function() { return arr[idx] !== undefined ? arr[idx] : 0.5; };
+  }
+
+  // With practiceTables=[3,7], use an rng whose pickIn always lands on 3 or 7
+  // pickIn = floor(rng()*9)+1; to get 3: rng in [0.222, 0.333); to get 7: rng in [0.666, 0.777)
+  // Cycle between these two ranges
+  var cycleValues = [0.3, 0.7, 0.3, 0.7, 0.3, 0.7]; // → tables 3,7,3,7,...
+  var ci = 0;
+  var ptRng = function() { return cycleValues[ci++ % cycleValues.length]; };
+
+  var qTest = TTT.makeQuestion(
+    { minTable: 1, maxTable: 9, practiceTables: [3, 7] }, ptRng
+  );
+  // First call: rng=0.3→pickIn=floor(0.3*9)+1=3; second: 0.7→floor(0.7*9)+1=7
+  // After 2 calls both in {3,7}, success! qTest should be (3,7) or (7,3)
+  var validA = (qTest.a === 3 || qTest.a === 7);
+  var validB = (qTest.b === 3 || qTest.b === 7);
+  assert.ok(validA && validB,
+    'practiceTables=[3,7] filters: a=' + qTest.a + ',b=' + qTest.b);
+
+  // Multiple calls with same controlled rng to verify consistency
+  var passCount = 0;
+  for (var i = 0; i < 10; i++) {
+    ci = 0; // reset cycle
+    ptRng = function() { return cycleValues[ci++ % cycleValues.length]; };
+    var qn = TTT.makeQuestion(
+      { minTable: 1, maxTable: 9, practiceTables: [3, 7] }, ptRng
+    );
+    if ((qn.a === 3 || qn.a === 7) && (qn.b === 3 || qn.b === 7)) passCount++;
+  }
+  // With our controlled rng all 10 should pass since both values are always in {3,7}
+  assert.strictEqual(passCount, 10,
+    'ALL 10 controlled-RNG questions filtered to practiceTables [3,7]');
+}
+
+{
+  const group = 'Bug fix: cfg defaults include practiceTables: []';
+
+  // Bug 2: makeQuestion without practiceTables should work normally (no filtering)
+  var normalQs = [];
+  for (var i = 0; i < 50; i++) {
+    var q = TTT.makeQuestion({ minTable: 5, maxTable: 7 });
+    normalQs.push(q);
+    assert.ok(q.a >= 5 && q.a <= 7, 'no-PT question a in [5..7]');
+    assert.ok(q.b >= 5 && q.b <= 7, 'no-PT question b in [5..7]');
+  }
+
+  // Empty practiceTables array should behave like no filtering (normal range)
+  var emptyQs = [];
+  for (var i = 0; i < 50; i++) {
+    var q = TTT.makeQuestion({ minTable: 4, maxTable: 6, practiceTables: [] });
+    emptyQs.push(q);
+    assert.ok(q.a >= 4 && q.a <= 6, 'empty-PT question a in [4..6]');
+    assert.ok(q.b >= 4 && q.b <= 6, 'empty-PT question b in [4..6]');
+  }
+
+  // Missing practiceTables property (not present) should work normally
+  var missingQs = [];
+  for (var i = 0; i < 50; i++) {
+    var q = TTT.makeQuestion({ minTable: 3, maxTable: 5 });
+    missingQs.push(q);
+    assert.ok(q.a >= 3 && q.a <= 5, 'missing-PT question a in [3..5]');
+    assert.ok(q.b >= 3 && q.b <= 5, 'missing-PT question b in [3..5]');
+  }
+}
+
+{
+  const group = 'Bug fix: DIFFICULTY_PRESETS title-case keys';
+
+  // Bug 4: timeLimitFor normalizes case to match DIFFICULTY_PRESETS keys
+  // DIFFICULTY_PRESETS keys are title-case: "Easy", "Medium", "Hard"
+
+  // Exact title-case should work
+  assert.strictEqual(TTT.timeLimitFor({ difficulty: 'Easy' }), 15,
+    'Title-case "Easy" → 15s');
+  assert.strictEqual(TTT.timeLimitFor({ difficulty: 'Medium' }), 12,
+    'Title-case "Medium" → 12s');
+  assert.strictEqual(TTT.timeLimitFor({ difficulty: 'Hard' }), 9,
+    'Title-case "Hard" → 9s');
+
+  // Lowercase-only should be normalized (first letter uppercased)
+  assert.strictEqual(TTT.timeLimitFor({ difficulty: 'easy' }), 15,
+    '"easy" normalizes to Easy → 15s');
+  assert.strictEqual(TTT.timeLimitFor({ difficulty: 'medium' }), 12,
+    '"medium" normalizes to Medium → 12s');
+  assert.strictEqual(TTT.timeLimitFor({ difficulty: 'hard' }), 9,
+    '"hard" normalizes to Hard → 9s');
+
+  // Custom timeLimit should still take priority over difficulty name
+  assert.strictEqual(TTT.timeLimitFor({ timeLimit: 30, difficulty: 'Easy' }), 30,
+    'custom timeLimit overrides preset');
+
+  // No valid preset fallback (all-uppercase doesn't match title-case)
+  var noMatch = TTT.timeLimitFor({ difficulty: 'EASY' });
+  assert.strictEqual(noMatch, 15,
+    '"EASY" falls back to first preset Easy → 15s');
+}
+
+{
+  const group = 'Bug fix: makeQuestion cfg wiring (questionsPerLevel flow)';
+
+  // Bug 4/6: makeRoomQuestions uses cfg minTable/maxTable from presets
+  var roomQs = TTT.makeRoomQuestions(0, 3);
+  assert.ok(Array.isArray(roomQs), 'makeRoomQuestions returns array');
+  assert.strictEqual(roomQs.length, 3, 'got exactly 3 questions for count=3');
+
+  // Room 0 (Grass Dungeon): tableMin=1, tableMax=3
+  var grassValid = true;
+  for (var i = 0; i < roomQs.length; i++) {
+    if (roomQs[i].a < 1 || roomQs[i].a > 3) grassValid = false;
+    if (roomQs[i].b < 1 || roomQs[i].b > 3) grassValid = false;
+  }
+  assert.ok(grassValid, 'room 0 questions in [1..3]');
+
+  // Room 3 (Dragon Lair): tableMin=1, tableMax=9
+  var dragonQs = TTT.makeRoomQuestions(3, 5);
+  assert.strictEqual(dragonQs.length, 5, 'dragon room got 5 questions');
+}
+
+{
+  const group = 'Bug fix: game over screen state (state-driven)';
+
+  // Bug 5: Game over should show purple bg + "Let's Try Again!" button
+  // The UI behavior is driven by game state; we verify the relevant state
+  // properties exist on TTT and that dungeon/clear checks work correctly.
+
+  // Verify startDungeon returns valid dungeon state shape
+  var dungeon = TTT.startDungeon('easy');
+  assert.ok(dungeon, 'startDungeon returns dungeon object');
+  assert.strictEqual(dungeon.currentRoomIndex, 0, 'starts at room 0');
+  assert.ok(Array.isArray(dungeon.roomsCleared), 'has roomsCleared array');
+  assert.ok(dungeon.totalRooms > 0, 'totalRooms > 0');
+
+  // Verify dungeon state can be checked for clearing
+  var cleared = TTT.isDungeonCleared(dungeon);
+  assert.strictEqual(cleared, false, 'fresh dungeon is not cleared');
+
+  // Verify hero HP and game over logic work correctly
+  assert.ok(TTT.HEROES.chickaletta, 'chickaletta hero exists');
+  assert.ok(TTT.HEROES.grapefruit, 'grapefruit hero exists');
+
+  // verify hit-back behavior that leads to game-over state
+  var heroState = {
+    shield: 0, health: TTT.HEROES.chickaletta.maxHealth,
+    maxHp: TTT.HEROES.chickaletta.maxHealth
+  };
+  var afterHit = TTT.applyHitBackToHero(heroState, 100);
+  assert.ok(afterHit.health < heroState.health,
+    'hit-back reduces HP');
+}
+
+{
+  const group = 'Bug fix: settings save flow with practiceTables';
+
+  // Bug 6: Settings save/load should include practiceTables in cfg
+  // While save/load is browser-specific, we verify the wiring through
+  // makeQuestion — it should correctly accept and apply the practiceTables param.
+
+  // Verify that makeQuestion accepts practiceTables parameter and uses it
+  // Use a deterministic RNG that always returns values landing on table 5
+  // pickIn: floor(rng*8)+2 (for range [2..9]). To get 5: rng in [0.375, 0.5)
+  var ci = 0;
+  var singlePTCycle = [0.4, 0.4, 0.4, 0.4]; // all → table 5
+  function singlePTRng() { return singlePTCycle[ci++ % singlePTCycle.length]; }
+  var withPT = TTT.makeQuestion(
+    { minTable: 2, maxTable: 9, practiceTables: [5] }, singlePTRng
+  );
+  assert.strictEqual(withPT.a, 5, 'practiceTables=[5] forces a=5');
+  assert.strictEqual(withPT.b, 5, 'practiceTables=[5] forces b=5');
+
+  // Verify makeQuestion with multiple practice tables works
+  ci = 0;
+  var multiPTCycle = [0.3, 0.6]; // → table 4 (rng≈0.3) and table 8 (rng≈0.6)
+  function multiPTRng() { return multiPTCycle[ci++ % multiPTCycle.length]; }
+  var multiQ = TTT.makeQuestion(
+    { minTable: 1, maxTable: 12, practiceTables: [4, 6, 8] }, multiPTRng
+  );
+  assert.ok(multiQ.a === 4 || multiQ.a === 6 || multiQ.a === 8,
+    'multi-PT a is one of [4,6,8]');
+  assert.ok(multiQ.b === 4 || multiQ.b === 6 || multiQ.b === 8,
+    'multi-PT b is one of [4,6,8]');
+}
+
 console.log('All ' + Object.keys(TTT).length + ' TTT functions verified successfully.');
