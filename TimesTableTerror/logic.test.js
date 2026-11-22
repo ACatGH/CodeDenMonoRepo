@@ -481,17 +481,17 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
   var ds = TTT.startDungeon();
 
   // Non-boss room: never fires
-  assert.strictEqual(TTT.shouldSpecialMove(ds, 0, 1), false, 'room 0 not a boss');
-  assert.strictEqual(TTT.shouldSpecialMove(ds, 1, 1), false, 'room 1 not a boss');
-  assert.strictEqual(TTT.shouldSpecialMove(ds, 2, 1), false, 'room 2 not a boss');
+  assert.strictEqual(TTT.shouldSpecialMove(ds, 0), false, 'room 0 not a boss');
+  assert.strictEqual(TTT.shouldSpecialMove(ds, 1), false, 'room 1 not a boss');
+  assert.strictEqual(TTT.shouldSpecialMove(ds, 2), false, 'room 2 not a boss');
 
   // Boss room: final phase check overrides random roll (deterministic true)
   ds = TTT.startDungeon();
-  assert.strictEqual(TTT.shouldSpecialMove(ds, 3, 1), true, 'final-phase boss deterministically fires special');
+  assert.strictEqual(TTT.shouldSpecialMove(ds, 3), true, 'final-phase boss deterministically fires special');
 
   // Boss room after special already used: never fires
   ds.bossSpecialUsed = true;
-  assert.strictEqual(TTT.shouldSpecialMove(ds, 3, 1), false, 'already used → always false');
+  assert.strictEqual(TTT.shouldSpecialMove(ds, 3), false, 'already used → always false');
 }
 
 // ------------------------------------------------------------------
@@ -712,7 +712,7 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
 
   // With the fix applied: monsterState should already exist on dungeonState
   // and represent a low-HP boss in final phase → deterministic true.
-  var result = TTT.shouldSpecialMove(ds, 3, 0.15);
+  var result = TTT.shouldSpecialMove(ds, 3);
   assert.strictEqual(result, true, 
     'final-phase boss + not used → special move fires deterministically (not random)');
 

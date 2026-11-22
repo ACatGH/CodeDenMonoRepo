@@ -49,7 +49,7 @@ function makeBossDs(monsterHp) {
 function samplePhase(ds, numSamples) {
   let countTrue = 0;
   for (let i = 0; i < numSamples; i++) {
-    const result = TTT.shouldSpecialMove(ds, 3, 0.5);
+    const result = TTT.shouldSpecialMove(ds, 3);
     if (result === true) countTrue++;
   }
   return countTrue;
@@ -105,7 +105,7 @@ try {
   const ds = makeBossDs(50);
   let countTrue = 0;
   for (let i = 0; i < 10; i++) {
-    if (TTT.shouldSpecialMove(ds, 0, 1.0) === true) countTrue++;
+    if (TTT.shouldSpecialMove(ds, 0) === true) countTrue++;
   }
   console.log(`  Non-boss room: ${countTrue}/10 calls returned true`);
   assert.strictEqual(countTrue, 0, 'Non-boss rooms must NEVER return true');
