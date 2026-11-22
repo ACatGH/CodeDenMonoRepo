@@ -118,6 +118,8 @@ try {
 // Summary
 if (allPassed) {
   console.log('=== ALL TESTS PASSED — bug is fixed ===');
+  process.exit(0);
 } else {
   console.log('=== SOME TESTS FAILED — bug is confirmed ===');
+  process.exit(1);
 }
