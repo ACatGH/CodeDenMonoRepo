@@ -538,7 +538,8 @@ html, body {
         bossSpecialUsed: false,
         totalRooms: ROOMS.length,
         difficulty: difficulty || 'medium',
-        monsterStates: []
+        monsterStates: [],
+        monsterState: { hp: 0, maxHp: 200 } // set for phase check; updated by startRoom() on entry
       };
       return dungeonState;
     }
@@ -567,11 +568,8 @@ html, body {
       if (!room || !room.isBoss) return false;
       if (dungeonState && dungeonState.bossSpecialUsed) return false;
       // Deterministic in final phase: when monster HP <= 0 (final phase reached), always trigger
-      var roomIdx = dungeonState.currentRoomIndex;
-      if (roomIdx === ROOMS.length - 1) {
-        var ms = dungeonState.monsterState;
-        if (ms && getPhase(ms, (ms.maxHp || 1) - ms.hp) >= 2) return true;
-      }
+      var ms = dungeonState && dungeonState.monsterState;
+      if (ms && getPhase(ms, (ms.maxHp || 1) - ms.hp) === 2) return true;
       return Math.random() < specialMoveChance;
     }
 
@@ -1175,8 +1173,8 @@ html, body {
       }
 
       var phaseNames = ['Phase 1', 'Phase 2 🔥', 'Phase 3 💀'];
-      if (isBossFight) {
-        var phase = TTT.getPhase(gameState.currentRoomIndex || 0, gameState.combo);
+      if (isBossFight && gameState.monster) {
+        var phase = TTT.getPhase(gameState.monster, 0);
         monsterHpTextEl.textContent = 'Monster HP: ' + Math.round(gameState.monster.hp) + '/' + Math.round(gameState.monster.maxHp) + ' — ' + (phaseNames[phase] || 'Boss');
       } else {
         monsterHpTextEl.textContent = 'Monster HP: ' + Math.round(gameState.monster.hp) + '/' + Math.round(gameState.monster.maxHp);
