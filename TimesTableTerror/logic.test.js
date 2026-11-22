@@ -310,7 +310,289 @@ assert.ok(TTT, 'TTT namespace must be defined after running pure-logic block');
 }
 
 // ------------------------------------------------------------------
-// DONE — External-reference scan (criterion 7)
+// 11. ROOMS — Dungeon room definitions
+// ------------------------------------------------------------------
+
+{
+  const group = 'ROOMS';
+  assert.ok(TTT.ROOMS, 'ROOMS array must exist');
+  assert.strictEqual(TTT.ROOMS.length, 4, 'exactly 4 rooms');
+
+  // Room 0: Grass Dungeon
+  var r0 = TTT.ROOMS[0];
+  assert.strictEqual(r0.id, 0, 'room 0 id');
+  assert.strictEqual(r0.name, 'Grass Dungeon', 'room 0 name');
+  assert.strictEqual(r0.tableMin, 1, 'room 0 tableMin');
+  assert.strictEqual(r0.tableMax, 3, 'room 0 tableMax');
+  assert.ok(r0.color, 'room 0 has color');
+  assert.ok(r0.bgColor1 && r0.bgColor2, 'room 0 has theme colors');
+  assert.strictEqual(typeof r0.monsterHp, 'function', 'room 0 has monsterHp function');
+  assert.strictEqual(r0.boss, false, 'room 0 is not a boss room');
+  assert.strictEqual(r0.specialMoveChance, 0, 'non-boss rooms have no special move chance');
+
+  // Room 1: Lava Caverns
+  var r1 = TTT.ROOMS[1];
+  assert.strictEqual(r1.id, 1, 'room 1 id');
+  assert.strictEqual(r1.name, 'Lava Caverns', 'room 1 name');
+  assert.strictEqual(r1.tableMin, 4, 'room 1 tableMin');
+  assert.strictEqual(r1.tableMax, 6, 'room 1 tableMax');
+  assert.strictEqual(r1.boss, false, 'room 1 is not a boss room');
+
+  // Room 2: Dark Forest
+  var r2 = TTT.ROOMS[2];
+  assert.strictEqual(r2.id, 2, 'room 2 id');
+  assert.strictEqual(r2.name, 'Dark Forest', 'room 2 name');
+  assert.strictEqual(r2.tableMin, 7, 'room 2 tableMin');
+  assert.strictEqual(r2.tableMax, 9, 'room 2 tableMax');
+  assert.strictEqual(r2.boss, false, 'room 2 is not a boss room');
+
+  // Room 3: Times-Table Dragon Lair (boss)
+  var r3 = TTT.ROOMS[3];
+  assert.strictEqual(r3.id, 3, 'room 3 id');
+  assert.strictEqual(r3.name, 'Times-Table Dragon Lair', 'room 3 name');
+  assert.strictEqual(r3.tableMin, 1, 'boss uses all tables');
+  assert.strictEqual(r3.tableMax, 9, 'boss uses all tables');
+  assert.strictEqual(r3.boss, true, 'room 3 is a boss room');
+}
+
+// ------------------------------------------------------------------
+// 12. COMBO_FEEDBACKS — Milestone messages
+// ------------------------------------------------------------------
+
+{
+  const group = 'COMBO_FEEDBACKS';
+  assert.ok(TTT.COMBO_FEEDBACKS, 'COMBO_FEEDBACKS must exist');
+  assert.ok(TTT.COMBO_FEEDBACKS.length >= 3, 'at least 3 combo feedbacks');
+
+  // First feedback at combo >= 3
+  var firstFb = TTT.COMBO_FEEDBACKS[0];
+  assert.ok(firstFb.combo >= 3, 'first feedback at combo >= 3');
+  assert.ok(typeof firstFb.message === 'string' && firstFb.message.length > 0, 'has message');
+
+  // All combos are increasing
+  for (var i = 1; i < TTT.COMBO_FEEDBACKS.length; i++) {
+    assert.ok(TTT.COMBO_FEEDBACKS[i].combo > TTT.COMBO_FEEDBACKS[i - 1].combo, 'combos increasing');
+  }
+}
+
+// ------------------------------------------------------------------
+// 13. startDungeon — Creates initial dungeon state
+// ------------------------------------------------------------------
+
+{
+  const group = 'startDungeon';
+  var ds = TTT.startDungeon('medium');
+
+  assert.strictEqual(ds.currentRoomIndex, 0, 'starts at room 0');
+  assert.strictEqual(ds.totalRooms, 4, 'total rooms is 4');
+  assert.strictEqual(ds.difficulty, 'medium', 'difficulty preserved');
+  assert.strictEqual(ds.bossSpecialUsed, false, 'boss special not used yet');
+  assert.strictEqual(ds.roomsCleared.length, 4, '4 room slots');
+  for (var i = 0; i < 4; i++) {
+    assert.strictEqual(ds.roomsCleared[i], false, 'room ' + i + ' initially not cleared');
+  }
+
+  // No argument also works (defaults)
+  var ds2 = TTT.startDungeon();
+  assert.strictEqual(ds2.currentRoomIndex, 0, 'default start works');
+
+  // Different difficulty
+  var ds3 = TTT.startDungeon('hard');
+  assert.strictEqual(ds3.difficulty, 'hard', 'hard difficulty preserved');
+}
+
+// ------------------------------------------------------------------
+// 14. nextRoom — Advances room index
+// ------------------------------------------------------------------
+
+{
+  const group = 'nextRoom';
+  var ds = TTT.startDungeon();
+
+  // Advance from 0 to 1
+  var next = TTT.nextRoom(ds);
+  assert.strictEqual(next, 1, 'advance 0→1');
+  assert.strictEqual(ds.currentRoomIndex, 1, 'state updated');
+
+  // Advance to boss (room 3)
+  next = TTT.nextRoom(ds);
+  assert.strictEqual(next, 2, 'advance 1→2');
+  next = TTT.nextRoom(ds);
+  assert.strictEqual(next, 3, 'advance 2→boss');
+
+  // Past the end → -1
+  next = TTT.nextRoom(ds);
+  assert.strictEqual(next, -1, 'past boss returns -1');
+
+  // Idempotent: keep returning -1
+  next = TTT.nextRoom(ds);
+  assert.strictEqual(next, -1, '-1 stays after last room');
+}
+
+// ------------------------------------------------------------------
+// 15. getPhase — Combo-based phase for boss
+// ------------------------------------------------------------------
+
+{
+  const group = 'getPhase';
+  assert.strictEqual(TTT.getPhase(0, 0), 0, 'combo 0 → phase 0');
+  assert.strictEqual(TTT.getPhase(0, 4), 0, 'combo 4 → phase 0');
+  assert.strictEqual(TTT.getPhase(3, 5), 1, 'combo 5 → phase 1');
+  assert.strictEqual(TTT.getPhase(3, 9), 1, 'combo 9 → phase 1');
+  assert.strictEqual(TTT.getPhase(3, 10), 2, 'combo 10 → phase 2');
+  assert.strictEqual(TTT.getPhase(3, 15), 2, 'combo 15 → phase 2');
+
+  // Edge: exactly at threshold
+  assert.strictEqual(TTT.getPhase(0, 4), 0, 'exactly 4 → phase 0');
+  assert.strictEqual(TTT.getPhase(0, 5), 1, 'exactly 5 → phase 1');
+}
+
+// ------------------------------------------------------------------
+// 16. shouldSpecialMove — Boss special move trigger
+// ------------------------------------------------------------------
+
+{
+  const group = 'shouldSpecialMove';
+
+  var ds = TTT.startDungeon();
+
+  // Non-boss room: never fires
+  assert.strictEqual(TTT.shouldSpecialMove(ds, 0, 1), false, 'room 0 not a boss');
+  assert.strictEqual(TTT.shouldSpecialMove(ds, 1, 1), false, 'room 1 not a boss');
+  assert.strictEqual(TTT.shouldSpecialMove(ds, 2, 1), false, 'room 2 not a boss');
+
+  // Boss room before special used: depends on random (but with chance 0 → false)
+  ds = TTT.startDungeon();
+  assert.strictEqual(TTT.shouldSpecialMove(ds, 3, 0), false, 'chance 0 never fires');
+
+  // Boss room after special already used: never fires
+  ds.bossSpecialUsed = true;
+  assert.strictEqual(TTT.shouldSpecialMove(ds, 3, 1), false, 'already used → always false');
+}
+
+// ------------------------------------------------------------------
+// 17. isBossDefeated — Checks if boss HP reached 0
+// ------------------------------------------------------------------
+
+{
+  const group = 'isBossDefeated';
+
+  var bossState = { defeated: true };
+  assert.strictEqual(TTT.isBossDefeated(bossState), true, 'defeated=true → true');
+
+  var bossAlive = { defeated: false };
+  assert.strictEqual(TTT.isBossDefeated(bossAlive), false, 'defeated=false → false');
+
+  // Null/undefined → false
+  assert.strictEqual(TTT.isBossDefeated(null), false, 'null → false');
+  assert.strictEqual(TTT.isBossDefeated(undefined), false, 'undefined → false');
+}
+
+// ------------------------------------------------------------------
+// 18. isDungeonCleared — All rooms cleared?
+// ------------------------------------------------------------------
+
+{
+  const group = 'isDungeonCleared';
+
+  // All true
+  var ds1 = TTT.startDungeon();
+  ds1.roomsCleared = [true, true, true, true];
+  assert.strictEqual(TTT.isDungeonCleared(ds1), true, 'all cleared → true');
+
+  // One false
+  var ds2 = TTT.startDungeon();
+  ds2.roomsCleared = [true, false, true, true];
+  assert.strictEqual(TTT.isDungeonCleared(ds2), false, 'one not cleared → false');
+
+  // Null/undefined → false
+  assert.strictEqual(TTT.isDungeonCleared(null), false, 'null → false');
+}
+
+// ------------------------------------------------------------------
+// 19. makeRoomQuestions — Room-specific question generation
+// ------------------------------------------------------------------
+
+{
+  const group = 'makeRoomQuestions';
+
+  var q0 = TTT.makeRoomQuestions(0, 3);
+  assert.strictEqual(q0.length, 3, 'got 3 questions');
+  for (var i = 0; i < q0.length; i++) {
+    var q = q0[i];
+    assert.ok(q.a >= 1 && q.a <= 3, 'room 0 a in [1..3]');
+    assert.ok(q.b >= 1 && q.b <= 3, 'room 0 b in [1..3]');
+  }
+
+  var q4 = TTT.makeRoomQuestions(1, 5);
+  assert.strictEqual(q4.length, 5, 'got 5 questions');
+  for (var j = 0; j < q4.length; j++) {
+    var qj = q4[j];
+    assert.ok(qj.a >= 4 && qj.a <= 6, 'room 1 a in [4..6]');
+    assert.ok(qj.b >= 4 && qj.b <= 6, 'room 1 b in [4..6]');
+  }
+
+  var q7 = TTT.makeRoomQuestions(2, 4);
+  assert.strictEqual(q7.length, 4, 'got 4 questions');
+  for (var k = 0; k < q7.length; k++) {
+    var qk = q7[k];
+    assert.ok(qk.a >= 7 && qk.a <= 9, 'room 2 a in [7..9]');
+    assert.ok(qk.b >= 7 && qk.b <= 9, 'room 2 b in [7..9]');
+  }
+
+  // Boss room (3) — all tables
+  var qb = TTT.makeRoomQuestions(3, 2);
+  assert.strictEqual(qb.length, 2, 'boss got 2 questions');
+  for (var m = 0; m < qb.length; m++) {
+    var qbq = qb[m];
+    assert.ok(qbq.a >= 1 && qbq.a <= 9, 'boss a in [1..9]');
+    assert.ok(qbq.b >= 1 && qbq.b <= 9, 'boss b in [1..9]');
+  }
+
+  // Invalid room index returns empty array
+  var qInv = TTT.makeRoomQuestions(99, 3);
+  assert.ok(Array.isArray(qInv), 'invalid room → array');
+}
+
+// ------------------------------------------------------------------
+// 20. getComboFeedback — Returns milestone message
+// ------------------------------------------------------------------
+
+{
+  const group = 'getComboFeedback';
+
+  var fbLow = TTT.getComboFeedback(2);
+  assert.strictEqual(fbLow, null, 'combo 2 below all thresholds → null');
+
+  var fbHi = TTT.getComboFeedback(10);
+  assert.ok(typeof fbHi === 'string' && fbHi.length > 0, 'combo 10 returns message');
+
+  // At threshold
+  for (var i = 0; i < TTT.COMBO_FEEDBACKS.length; i++) {
+    var fb = TTT.getComboFeedback(TTT.COMBO_FEEDBACKS[i].combo);
+    assert.ok(typeof fb === 'string' && fb.length > 0, 'at threshold → message');
+  }
+}
+
+// ------------------------------------------------------------------
+// 21. getRoomThemeColor — Returns room color
+// ------------------------------------------------------------------
+
+{
+  const group = 'getRoomThemeColor';
+
+  assert.strictEqual(TTT.getRoomThemeColor(0), '#5DAE4F', 'room 0 color');
+  assert.strictEqual(TTT.getRoomThemeColor(1), '#E74C3C', 'room 1 color');
+  assert.strictEqual(TTT.getRoomThemeColor(2), '#8E44AD', 'room 2 color');
+  assert.strictEqual(TTT.getRoomThemeColor(3), '#FF4500', 'boss room color');
+
+  // Invalid index returns default
+  var defaultColor = TTT.getRoomThemeColor(-1);
+  assert.ok(typeof defaultColor === 'string' && defaultColor.length > 0, '-1 returns string');
+}
+
+// ------------------------------------------------------------------
+// DONE — External-reference scan (criterion 7) — unchanged
 // ------------------------------------------------------------------
 
 // The HTML must contain zero external references: no http(s) URLs,
