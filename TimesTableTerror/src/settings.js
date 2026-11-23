@@ -135,6 +135,7 @@ function applyPreset(name, current) {
   const base = Object.assign({}, DEFAULT_SETTINGS, current || {});
   const p = PRESETS[name];
   if (p) {
+    base.preset            = name;
     base.range             = Object.assign({}, base.range, p.range);
     base.questionsPerLevel = p.questionsPerLevel != null ? p.questionsPerLevel : base.questionsPerLevel;
     base.timeLimitSec      = p.timeLimitSec     != null ? p.timeLimitSec     : base.timeLimitSec;

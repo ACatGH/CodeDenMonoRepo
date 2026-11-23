@@ -142,6 +142,45 @@ describe('applyPreset', () => {
     const r = applyPreset('SuperMegaUltra', {});
     assert.strictEqual(r.preset, DEFAULT_SETTINGS.preset);
   });
+
+  // ---- Bug reproduction: preset field must reflect the applied preset ----
+
+  it('Easy applies preset "Easy"', () => {
+    const r = applyPreset('Easy', {});
+    assert.strictEqual(r.preset, 'Easy');
+  });
+
+  it('Medium applies preset "Medium"', () => {
+    const r = applyPreset('Medium', {});
+    assert.strictEqual(r.preset, 'Medium');
+  });
+
+  it('Hard applies preset "Hard"', () => {
+    const r = applyPreset('Hard', {});
+    assert.strictEqual(r.preset, 'Hard');
+  });
+
+  it('switching presets updates the preset field (regression: old preset remained)', () => {
+    // This is the core bug: switching from Easy to Hard must update preset to "Hard"
+    const first = applyPreset('Easy', {});
+    assert.strictEqual(first.preset, 'Easy');
+    const second = applyPreset('Hard', first);
+    assert.strictEqual(second.preset, 'Hard');
+  });
+
+  it('switching Medium → Easy updates preset correctly', () => {
+    const first = applyPreset('Medium', {});
+    assert.strictEqual(first.preset, 'Medium');
+    const second = applyPreset('Easy', first);
+    assert.strictEqual(second.preset, 'Easy');
+  });
+
+  it('switching Hard → Medium updates preset correctly', () => {
+    const first = applyPreset('Hard', {});
+    assert.strictEqual(first.preset, 'Hard');
+    const second = applyPreset('Medium', first);
+    assert.strictEqual(second.preset, 'Medium');
+  });
 });
 
 // ---------- buildPracticeTables ----------
