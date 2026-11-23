@@ -1,0 +1,92 @@
+
+=== All tests pass: answer buttons now respond to mouse clicks ===
+Event delegation on #answer-blocks dispatches to handleCorrectAnswer / handleWrongAnswer.
+
+▶ Answer button click wiring (Issue #23)
+  ✔ #answer-blocks container exists in HTML (0.325ms)
+  ✔ updateAnswerBlocks creates div elements with data-index (0.624417ms)
+  ✔ FIX VERIFIED: #answer-blocks has a click event listener (event delegation) (0.162833ms)
+  ✔ FIX VERIFIED: click handler dispatches to correct/wrong answer handlers (0.085041ms)
+  ✔ FIX VERIFIED: click handler uses data-index from the clicked element (0.060417ms)
+  ✔ FIX VERIFIED: click handler guards against playing screen state (0.118083ms)
+  ✔ FIX VERIFIED: click handler guards against null currentQuestion (0.051708ms)
+  ✔ keyboard handler for keys 1-4 still works (baseline preserved) (0.1495ms)
+✔ Answer button click wiring (Issue #23) (2.134792ms)
+▶ GitHub Issue #25 — Hearts display bug
+  ✔ BUG: heartCount is hardcoded to 8 (should equal gameState.lives=3) (0.372375ms)
+  ✔ BUG: empty slots use spade symbol U+2660 (should be outlined heart or nothing) (0.081834ms)
+  ✔ BUG: non-filled hearts are gray (#666) (should be red) (0.396458ms)
+  ✔ FIX: With lives=3 and health at 70%, shows exactly 3 hearts (0.106958ms)
+  ✔ FIX: With lives=2, shows exactly 2 hearts (0.100916ms)
+  ✔ FIX: All heart symbols are either filled U+2665 or outlined U+2661 (no spade U+2660) (0.08125ms)
+  ✔ FIX: All hearts are red (#E74C3C), not gray (0.05225ms)
+  ✔ FIX: When HP is full (100%), all hearts are filled U+2665 (0.055834ms)
+  ✔ FIX: When HP is 0%, all hearts are outlined (not filled) (0.061208ms)
+  ✔ EDGE: lives=1 shows exactly 1 heart (0.07575ms)
+✔ GitHub Issue #25 — Hearts display bug (1.99375ms)
+▶ serializeSave / deserializeSave
+  ✔ serializes a full state with all fields (1.036584ms)
+  ✔ round-trips deep-equal (0.111833ms)
+  ✔ null input returns null (0.047208ms)
+  ✔ non-object input returns null (0.038958ms)
+  ✔ corrupt JSON returns null on deserialize (0.0495ms)
+  ✔ empty string returns null (0.046666ms)
+  ✔ invalid hero (non-string) normalizes to null (0.0545ms)
+  ✔ invalid xp normalizes to 0 (0.059375ms)
+  ✔ invalid coins normalizes to 0 (0.063084ms)
+  ✔ invalid unlockedItems normalizes to [] (0.092958ms)
+  ✔ only includes fields in the allowlist (ignore extras) (0.052084ms)
+  ✔ _v version stamp present (0.038125ms)
+  ✔ partial save (only some fields) round-trips cleanly (0.044583ms)
+✔ serializeSave / deserializeSave (2.343584ms)
+▶ saveGame / loadGame
+  ✔ saveGame + loadGame round-trip deep-equals original (0.220542ms)
+  ✔ empty storage returns defaults (0.074792ms)
+  ✔ corrupt save data returns defaults (0.425667ms)
+  ✔ empty string save returns defaults (0.043417ms)
+  ✔ partial save fills missing fields from defaults (0.04225ms)
+  ✔ older version save is accepted and filled with defaults (0.036875ms)
+  ✔ loadGame returns a deep copy (mutating loaded does not affect saved) (0.062625ms)
+  ✔ null storage returns defaults without throwing (0.046209ms)
+  ✔ saveGame false returns on failure (0.035417ms)
+  ✔ partial or old-version save is filled with defaults (0.029459ms)
+✔ saveGame / loadGame (1.188875ms)
+▶ clampSettings
+  ✔ returns a fresh object (does not mutate input) (0.719083ms)
+  ✔ clamps range.min >= 1 (0.078666ms)
+  ✔ clamps range.max <= 12 (0.050583ms)
+  ✔ ensures range.min <= range.max (0.064667ms)
+  ✔ clamps questionsPerLevel to [1,50] (0.059583ms)
+  ✔ clamps timeLimitSec to [1,120] (0.065416ms)
+  ✔ clamps lives to [1,10] (0.060875ms)
+  ✔ fills missing fields from defaults (0.045ms)
+  ✔ survives garbage input (null, undefined, non-number) (0.058084ms)
+  ✔ survives totally null input (0.076ms)
+  ✔ handles practiceTables normalization (0.079041ms)
+  ✔ filters out-of-range practice tables (0.043667ms)
+  ✔ clamps empty preset to Easy name (0.046375ms)
+✔ clampSettings (2.1035ms)
+▶ applyPreset
+  ✔ Easy sets range [1,5], qpl=10, timeLimit=15, lives=3 (0.094458ms)
+  ✔ Medium sets range [3,7], qpl=12, timeLimit=10, lives=3 (0.464167ms)
+  ✔ Hard sets range [5,12], qpl=15, timeLimit=7, lives=2 (0.05575ms)
+  ✔ applyPreset returns a fresh clamped object (no mutation) (0.0605ms)
+  ✔ merges preset over existing settings (preserves unset fields) (0.037917ms)
+  ✔ unknown preset falls back to defaults and clamps (0.022792ms)
+✔ applyPreset (0.836833ms)
+▶ buildPracticeTables
+  ✔ empty pick falls back to default range (0.079083ms)
+  ✔ picks deduplicate and sort (0.034291ms)
+  ✔ filters out-of-range (0, -1, 13) (0.020834ms)
+  ✔ in-range values are kept (0.018583ms)
+  ✔ uses default range when picks is null/undefined (0.0325ms)
+  ✔ falls back to DEFAULT_SETTINGS when no defaultRange given (0.019542ms)
+✔ buildPracticeTables (0.268875ms)
+ℹ tests 66
+ℹ suites 7
+ℹ pass 66
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 72.31125
