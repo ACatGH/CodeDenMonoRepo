@@ -1387,10 +1387,9 @@ input[type="number"] {
     var hs = gameState.heroState;
     if (!hs) return;
 
-    // Hearts (show full hearts + partial)
-    var maxHp = TTT.HEROES[gameState.selectedHero].maxHealth;
-    var hpRatio = Math.min(1, hs.health / maxHp);
-    var heartCount = 8;
+    // Hearts — use configured lives count, red hearts only (no spades)
+    var hpRatio = Math.min(1, hs.health / TTT.HEROES[gameState.selectedHero].maxHealth);
+    var heartCount = gameState.lives || 3;
     var filledHearts = Math.ceil(hpRatio * heartCount);
     heartsEl.innerHTML = '';
     for (var i = 0; i < heartCount; i++) {
@@ -1400,8 +1399,9 @@ input[type="number"] {
         span.textContent = '\u2665';
         span.style.color = '#E74C3C';
       } else {
-        span.textContent = '\u2660';
-        span.style.color = '#666';
+        // Outlined heart in red, not a spade symbol
+        span.textContent = '\u2661';
+        span.style.color = '#E74C3C';
       }
       heartsEl.appendChild(span);
     }
