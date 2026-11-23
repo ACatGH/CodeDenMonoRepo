@@ -1367,6 +1367,22 @@ input[type="number"] {
   var roomInfoEl = document.getElementById('room-info');
   var answerBlocksEl = document.getElementById('answer-blocks');
 
+  // Click event delegation for answer blocks — fixes issue #23
+  answerBlocksEl.addEventListener('click', function(e) {
+    if (gameState.screen !== 'playing' || !gameState.currentQuestion) return;
+    var clickedBlock = e.target.closest('.answer-block');
+    if (!clickedBlock) return;
+    var idx = parseInt(clickedBlock.getAttribute('data-index'), 10);
+    if (isNaN(idx) || idx < 0 || idx > 3) return;
+    e.preventDefault();
+
+    if (TTT.isCorrect(gameState.currentQuestion, idx)) {
+      handleCorrectAnswer(idx);
+    } else {
+      handleWrongAnswer();
+    }
+  });
+
   function updateHUD() {
     var hs = gameState.heroState;
     if (!hs) return;
