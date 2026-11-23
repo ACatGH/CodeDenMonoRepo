@@ -1,0 +1,2473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Times Table Terror</title>
+<style>
+/* === BLOCKY GAME-STYLE STYLES === */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #2C1810;
+  font-family: 'Arial Black', Impact, sans-serif;
+  -webkit-font-smoothing: none;
+}
+
+#game-container {
+  width: 100vw; height: 100vh;
+  display: flex; justify-content: center; align-items: center;
+  background: #1a0e08;
+  position: relative;
+  overflow: hidden;
+}
+
+#main-canvas {
+  border: 4px solid #5a3a20;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* HUD Overlay */
+#hud {
+  position: absolute; top: 0; left: 0; right: 0;
+  pointer-events: none; z-index: 10;
+}
+
+#hud-top-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 16px; background: rgba(44,24,16,0.9);
+  border-bottom: 4px solid #5a3a20;
+}
+
+.hearts { display: flex; gap: 4px; align-items: center; }
+.coin-display { color: #FFD700; font-size: 20px; text-shadow: 2px 2px #8B4513; }
+.combo-display { color: #FF6B6B; font-size: 18px; text-shadow: 2px 2px #8B4513; }
+
+#hud-bottom-bar {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 6px 16px; background: rgba(44,24,16,0.9);
+  border-top: 4px solid #5a3a20;
+}
+
+.xp-bar-container {
+  width: 100%; height: 20px; background: #3b2215;
+  border: 2px solid #5a3a20; position: relative;
+  overflow: hidden;
+}
+
+.xp-bar-fill {
+  height: 100%; background: linear-gradient(to bottom, #4CAF50, #2E7D32);
+  transition: width 0.3s;
+  border-right: 2px solid #6FBF6F;
+}
+
+.xp-text {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; justify-content: center; align-items: center;
+  color: white; font-size: 12px; text-shadow: 1px 1px #000;
+}
+
+/* HUD elements below canvas */
+#hud-below {
+  position: absolute; bottom: 68px; left: 0; right: 0;
+  pointer-events: none; z-index: 10;
+}
+
+/* Answer blocks */
+.answer-blocks {
+  display: flex; justify-content: space-around;
+  padding: 0 20px; gap: 8px;
+}
+
+.answer-block {
+  flex: 1; max-width: 160px; text-align: center;
+  background: linear-gradient(to bottom, #5DAE4F, #3D7A34);
+  border: 3px solid #2D5A1E;
+  padding: 16px 8px; cursor: pointer;
+  color: white; font-size: 24px; font-weight: bold;
+  text-shadow: 2px 2px #000;
+  position: relative;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.5);
+}
+
+.answer-block .key-hint {
+  display: block; margin-top: 6px; font-size: 14px;
+  color: #FFD700; font-weight: normal;
+}
+
+/* Monster health bar */
+.monster-hp-bar {
+  width: 200px; height: 18px; background: #3b2215;
+  border: 2px solid #5a3a20; position: relative; margin: 0 auto;
+  overflow: hidden;
+}
+
+.monster-hp-fill {
+  height: 100%; background: linear-gradient(to right, #E74C3C, #C0392B);
+  transition: width 0.3s; border-right: 2px solid #F1948A;
+}
+
+.monster-hp-text {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; justify-content: center; align-items: center;
+  color: white; font-size: 11px; text-shadow: 1px 1px #000;
+}
+
+/* Timer bar */
+.timer-bar-container {
+  width: 200px; height: 12px; background: #3b2215;
+  border: 2px solid #5a3a20; position: relative; margin: 4px auto 0;
+  overflow: hidden;
+}
+
+.timer-bar-fill {
+  height: 100%; background: linear-gradient(to right, #FF6B6B, #EE5A24);
+  transition: width 0.1s linear; border-right: 2px solid #FFEAA7;
+}
+
+/* Encouraging text */
+.encourage-text {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-size: 36px; color: white; text-shadow: 3px 3px #000, -1px -1px #000;
+  z-index: 20; pointer-events: none;
+  animation: popIn 0.3s ease-out;
+  text-align: center;
+}
+
+@keyframes popIn {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+  70% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+/* Floating damage popup */
+.float-text {
+  position: absolute; font-size: 28px; font-weight: bold;
+  color: #FFD700; text-shadow: 2px 2px #000;
+  pointer-events: none; z-index: 25;
+  animation: floatUp 1s ease-out forwards;
+}
+
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
+}
+
+/* Monster HP and timer bars above canvas */
+#mid-bar-area {
+  position: absolute; top: 44px; left: 0; right: 0;
+  display: flex; justify-content: center; gap: 60px;
+  pointer-events: none; z-index: 10;
+}
+
+/* Paused overlay */
+#pause-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: none; justify-content: center; align-items: center;
+  flex-direction: column; z-index: 50;
+}
+
+#pause-overlay.active { display: flex; }
+#pause-overlay h2 { color: #FFD700; font-size: 48px; margin-bottom: 20px; }
+#pause-overlay p { color: white; font-size: 18px; }
+
+/* Screen shake class */
+.shake { animation: screenShake 0.2s ease-out; }
+@keyframes screenShake {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(-4px, 3px); }
+  40% { transform: translate(4px, -3px); }
+  60% { transform: translate(-3px, 4px); }
+  80% { transform: translate(3px, -2px); }
+}
+
+/* Hero select screen styles */
+.hero-select-screen {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; justify-content: center; align-items: center;
+  gap: 60px; z-index: 40; background: transparent;
+}
+
+/* Game Over screen overlay */
+.game-over-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: none; justify-content: center; align-items: center;
+  flex-direction: column; z-index: 45;
+  background: radial-gradient(ellipse at center, rgba(30,20,60,0.95) 0%, rgba(15,10,30,0.98) 100%);
+}
+.game-over-overlay.active { display: flex; }
+.game-over-overlay h1 {
+  font-size: 56px; color: #FFB74D; text-shadow: 2px 2px #3E2723;
+  margin-bottom: 20px; animation: popIn 0.6s ease-out;
+}
+.game-over-overlay p {
+  font-size: 20px; color: #fff; text-shadow: 1px 1px #000;
+  text-align: center; line-height: 1.8; margin-bottom: 30px;
+}
+
+/* Win screen overlay */
+.win-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: none; justify-content: center; align-items: center;
+  flex-direction: column; z-index: 45;
+  background: radial-gradient(ellipse at center, rgba(26,81,37,0.95) 0%, rgba(10,40,15,0.98) 100%);
+}
+.win-overlay.active { display: flex; }
+.win-overlay h1 {
+  font-size: 56px; color: #FFD700; text-shadow: 3px 3px #000;
+  margin-bottom: 20px; animation: popIn 0.6s ease-out;
+}
+.win-overlay p {
+  font-size: 20px; color: #fff; text-shadow: 1px 1px #000;
+  text-align: center; line-height: 1.8; margin-bottom: 30px;
+}
+.win-overlay .play-again-btn {
+  padding: 14px 40px; font-size: 22px; font-weight: bold;
+  background: linear-gradient(to bottom, #FFD700, #E6A800);
+  border: 3px solid #B8860B; border-radius: 10px;
+  cursor: pointer; color: #3b2215; text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.win-overlay .play-again-btn:hover { transform: scale(1.05); }
+
+.hero-card {
+  width: 250px; padding: 24px; border: 4px solid #5a3a20;
+  background: linear-gradient(to bottom, #4a3020, #3b2215);
+  text-align: center; cursor: pointer; color: white;
+  box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.6);
+  transition: transform 0.15s;
+}
+
+.hero-card:hover { transform: scale(1.05) translateY(-4px); }
+.hero-card .emoji { font-size: 72px; display: block; margin-bottom: 8px; }
+.hero-card h3 { font-size: 24px; color: #FFD700; margin-bottom: 8px; }
+.hero-card p { font-size: 14px; line-height: 1.6; color: #ddd; }
+
+.title-text {
+  position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+  font-size: 42px; color: #FFD700; text-shadow: 3px 3px #000, -1px -1px #000;
+  z-index: 41; text-align: center;
+}
+
+.start-prompt {
+  position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+  font-size: 20px; color: #fff; text-shadow: 2px 2px #000;
+  z-index: 41; animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Question area */
+.question-area {
+  position: absolute; top: 180px; left: 50%; transform: translateX(-50%);
+  text-align: center; z-index: 11; pointer-events: none;
+}
+
+.question-text {
+  font-size: 56px; color: white;
+  text-shadow: 4px 4px #000, -2px -2px #FFD700;
+  letter-spacing: 8px;
+}
+
+/* Room info */
+.room-info {
+  position: absolute; top: 68px; left: 16px;
+  font-size: 16px; color: #ddd; text-shadow: 2px 2px #000;
+  z-index: 11; pointer-events: none;
+}
+
+/* ========== SETTINGS SCREEN ========== */
+#settings-screen {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: none; justify-content: center; align-items: center;
+  flex-direction: column; z-index: 42;
+  background: radial-gradient(ellipse at center, rgba(26,81,37,0.95) 0%, rgba(10,40,15,0.98) 100%);
+}
+#settings-screen.active { display: flex; }
+
+.settings-panel {
+  width: 600px; max-width: 90vw; max-height: 85vh;
+  overflow-y: auto; padding: 24px; border: 4px solid #5a3a20;
+  background: linear-gradient(to bottom, #4a3020, #3b2215);
+  color: white; box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.6);
+}
+
+.settings-panel h2 {
+  font-size: 32px; color: #FFD700; text-shadow: 2px 2px #000;
+  margin-bottom: 16px; text-align: center;
+}
+
+.settings-section {
+  margin-bottom: 14px; padding: 10px 12px;
+  background: rgba(0,0,0,0.3); border: 2px solid #5a3a20;
+}
+.settings-section h3 {
+  font-size: 16px; color: #FFD700; margin-bottom: 8px;
+  text-shadow: 1px 1px #000;
+}
+
+/* Slider controls */
+.slider-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.slider-row label {
+  font-size: 15px; min-width: 110px; text-shadow: 1px 1px #000;
+}
+.slider-row input[type="range"] {
+  flex: 1; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  height: 24px; background: #3b2215; border: 2px solid #5a3a20;
+}
+.slider-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 22px; height: 22px; cursor: pointer;
+  background: linear-gradient(to bottom, #FFD700, #E6A800);
+  border: 2px solid #8B4513;
+}
+.slider-row input[type="range"]::-moz-range-thumb {
+  width: 22px; height: 22px; cursor: pointer;
+  background: linear-gradient(to bottom, #FFD700, #E6A800);
+  border: 2px solid #8B4513;
+}
+.slider-value {
+  font-size: 16px; color: #4CAF50; min-width: 30px; text-align: center;
+  text-shadow: 1px 1px #000;
+}
+
+/* Preset buttons */
+.preset-row { display: flex; gap: 8px; }
+.preset-btn {
+  flex: 1; padding: 10px 6px; font-size: 15px; font-weight: bold;
+  border: 3px solid #5a3a20; cursor: pointer; color: white;
+  text-shadow: 1px 1px #000; background: linear-gradient(to bottom, #6B4F30, #4a3020);
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.5);
+  transition: transform 0.1s;
+}
+.preset-btn:hover { transform: scale(1.05); }
+.preset-btn.active {
+  background: linear-gradient(to bottom, #4CAF50, #2E7D32);
+  border-color: #1B5E20; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), 0 0 12px rgba(76,175,80,0.6);
+}
+
+/* Editable controls (time, lives) */
+.edit-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+}
+.edit-row label { font-size: 15px; min-width: 100px; text-shadow: 1px 1px #000; }
+.edit-controls {
+  display: flex; align-items: center; gap: 4px;
+}
+.minus-btn, .plus-btn {
+  width: 32px; height: 32px; font-size: 20px; font-weight: bold;
+  border: 3px solid #5a3a20; cursor: pointer; color: white;
+  background: linear-gradient(to bottom, #6B4F30, #4a3020);
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.4);
+}
+.minus-btn:hover, .plus-btn:hover { transform: scale(1.1); }
+.edit-value {
+  font-size: 20px; font-weight: bold; color: #FFD700;
+  min-width: 40px; text-align: center; text-shadow: 1px 1px #000;
+}
+
+/* Practice mode checkboxes */
+.practice-grid {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+}
+.table-chip {
+  padding: 8px 4px; font-size: 15px; font-weight: bold;
+  text-align: center; border: 3px solid #5a3a20; cursor: pointer;
+  background: linear-gradient(to bottom, #6B4F30, #4a3020);
+  color: white; text-shadow: 1px 1px #000;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.4);
+  transition: transform 0.1s;
+}
+.table-chip:hover { transform: scale(1.1); }
+.table-chip.selected {
+  background: linear-gradient(to bottom, #5DAE4F, #3D7A34);
+  border-color: #2D5A1E; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), 0 0 8px rgba(93,174,79,0.6);
+}
+
+/* Action buttons */
+.settings-actions {
+  display: flex; gap: 10px; margin-top: 12px; justify-content: center;
+}
+.settings-actions button {
+  padding: 12px 30px; font-size: 18px; font-weight: bold;
+  border: 3px solid #5a3a20; cursor: pointer; color: white;
+  background: linear-gradient(to bottom, #6B4F30, #4a3020);
+  text-shadow: 1px 1px #000;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.5);
+  transition: transform 0.1s;
+}
+.settings-actions button:hover { transform: scale(1.05); }
+.settings-actions .btn-save {
+  background: linear-gradient(to bottom, #4CAF50, #2E7D32);
+  border-color: #1B5E20;
+}
+.settings-actions .btn-cancel {
+  background: linear-gradient(to bottom, #8B4513, #6B4F30);
+  border-color: #5a3a20;
+}
+
+/* Hero select settings link */
+.hero-card + .settings-link-row {
+  margin-top: 10px; text-align: center;
+}
+.go-to-settings-btn {
+  padding: 10px 24px; font-size: 16px; font-weight: bold;
+  border: 3px solid #FFD700; cursor: pointer; color: #FFD700;
+  background: rgba(0,0,0,0.4); text-shadow: 1px 1px #000;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.5);
+  transition: transform 0.1s;
+}
+.go-to-settings-btn:hover {
+  background: rgba(255,215,0,0.2); transform: scale(1.05);
+}
+
+/* Number input helper */
+input[type="number"] {
+  width: 60px; padding: 6px; font-size: 18px; font-weight: bold;
+  text-align: center; border: 3px solid #5a3a20;
+  background: #3b2215; color: #FFD700;
+  font-family: 'Arial Black', Impact, sans-serif;
+}
+
+/* Range label chips */
+.range-labels {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: #aaa; margin-top: -2px; margin-bottom: 4px;
+}
+
+/* Range label chips */
+</style>
+</head>
+<body>
+<div id="game-container">
+  <canvas id="main-canvas" width="800" height="600"></canvas>
+
+  <!-- HUD Top Bar -->
+  <div id="hud">
+    <div id="hud-top-bar">
+      <div class="hearts" id="hearts-display"></div>
+      <div class="coin-display" id="coin-display">🪙 0</div>
+      <div class="combo-display" id="combo-display">Combo: x1</div>
+    </div>
+    <div id="hud-bottom-bar">
+      <div class="xp-bar-container">
+        <div class="xp-bar-fill" id="xp-fill" style="width:0%"></div>
+        <div class="xp-text" id="xp-text">XP: 0 / 10</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mid bar area (monster hp & timer) -->
+  <div id="mid-bar-area">
+    <div class="monster-hp-bar" id="monster-hp-bar">
+      <div class="monster-hp-fill" id="monster-hp-fill" style="width:100%"></div>
+      <div class="monster-hp-text" id="monster-hp-text">Monster HP</div>
+    </div>
+    <div class="timer-bar-container" id="timer-bar-container">
+      <div class="timer-bar-fill" id="timer-fill" style="width:100%"></div>
+    </div>
+  </div>
+
+  <!-- Room info -->
+  <div class="room-info" id="room-info" style="display:none;">Room 1</div>
+
+  <!-- Dungeon map (mini progress dots) -->
+  <div id="dungeon-map" style="display:none;">
+    <span class="map-dot map-dot-cleared">1</span>
+    <span class="map-dot map-dot-cleared">2</span>
+    <span class="map-dot map-dot-active">3</span>
+    <span class="map-dot map-dot-future">4</span>
+  </div>
+
+  <!-- Combo milestone feedback -->
+  <div id="combo-feedback" style="position:absolute;top:100px;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:#FFD700;text-shadow:2px 2px #000;z-index:30;opacity:0;transition:all 0.3s;pointer-events:none;"></div>
+
+  <!-- Question area -->
+  <div class="question-area" id="question-area">
+    <div class="question-text" id="question-text">7 × 8 = ?</div>
+  </div>
+
+  <!-- Answer blocks -->
+  <div id="hud-below" style="display:none;">
+    <div class="answer-blocks" id="answer-blocks"></div>
+  </div>
+
+  <!-- Pause overlay -->
+  <div id="pause-overlay">
+    <h2>⏸ PAUSED</h2>
+    <p>Press P or Escape to resume</p>
+    <p style="margin-top:10px;font-size:14px;color:#aaa;">Press Enter to continue playing</p>
+  </div>
+
+  <!-- Hero select screen -->
+  <div class="hero-select-screen" id="hero-select" style="display:none;">
+    <div class="title-text">⚔️ Times Table Terror ⚔️</div>
+    <div class="start-prompt">Press Enter or Space to start!</div>
+    <div class="hero-card" id="hero-chickaletta" tabindex="0">
+      <span class="emoji">🐔</span>
+      <h3>Chickaletta</h3>
+      <p>⚡ Fast attack<br>❤️ 80 HP<br>💥 Big score per hit<br>✨ Flap Burst!</p>
+    </div>
+    <div class="hero-card" id="hero-grapefruit" tabindex="0">
+      <span class="emoji">🦖</span>
+      <h3>Grapefruit</h3>
+      <p>🛡️ Tanky<br>❤️ 150 HP<br>💪 Solid damage<br>✨ Chomp!</p>
+    </div>
+    <div class="settings-link-row">
+      <button class="go-to-settings-btn" id="open-settings-btn">⚙️ Settings</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS SCREEN OVERLAY -->
+  <div id="settings-screen">
+    <div class="settings-panel">
+      <h2>⚙️ Settings ⚙️</h2>
+
+      <!-- Section: Table Range -->
+      <div class="settings-section">
+        <h3>Times Table Range</h3>
+        <div class="slider-row">
+          <label>Min table:</label>
+          <input type="range" id="range-min" min="1" max="12" value="1" step="1">
+          <span class="slider-value" id="range-min-val">×1</span>
+        </div>
+        <div class="slider-row">
+          <label>Max table:</label>
+          <input type="range" id="range-max" min="1" max="12" value="5" step="1">
+          <span class="slider-value" id="range-max-val">×5</span>
+        </div>
+      </div>
+
+      <!-- Section: Difficulty Presets -->
+      <div class="settings-section">
+        <h3>Difficulty Preset</h3>
+        <div class="preset-row">
+          <button class="preset-btn" id="preset-easy">😊 Easy</button>
+          <button class="preset-btn" id="preset-medium">🤔 Medium</button>
+          <button class="preset-btn" id="preset-hard">😈 Hard</button>
+        </div>
+        <p style="font-size:12px;color:#aaa;margin-top:6px;text-align:center;" id="preset-desc"></p>
+      </div>
+
+      <!-- Section: Questions Per Level -->
+      <div class="settings-section">
+        <h3>Questions Per Level</h3>
+        <div class="slider-row">
+          <label>Count:</label>
+          <input type="range" id="qpl-slider" min="5" max="30" value="10" step="1">
+          <span class="slider-value" id="qpl-val">10</span>
+        </div>
+      </div>
+
+      <!-- Section: Time Limit & Lives -->
+      <div class="settings-section">
+        <h3>Time Limit &amp; Lives</h3>
+        <div class="slider-row" style="align-items:center;">
+          <label for="time-input">Time (sec):</label>
+          <input type="number" id="time-input" min="1" max="120" value="15" step="1" style="width:70px;">
+        </div>
+        <div class="slider-row" style="align-items:center;">
+          <label for="lives-input">Lives:</label>
+          <input type="number" id="lives-input" min="1" max="10" value="3" step="1" style="width:70px;">
+        </div>
+      </div>
+
+      <!-- Section: Practice Mode -->
+      <div class="settings-section">
+        <h3>Practice Mode Tables</h3>
+        <p style="font-size:12px;color:#aaa;margin-bottom:6px;">Click to pick which tables to practice.</p>
+        <div class="practice-grid" id="practice-grid"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="settings-actions">
+        <button class="btn-cancel" id="settings-cancel-btn">Cancel</button>
+        <button class="btn-save" id="settings-save-btn">💾 Save &amp; Play</button>
+      </div>
+    </div>
+  </div>
+  <!-- Game Over screen overlay -->
+  <div class="game-over-overlay" id="game-over-overlay">
+    <h1 id="game-over-title"></h1>
+    <p id="game-over-subtitle"></p>
+    <button class="play-again-btn" onclick="window._tttRestart()">Try Again</button>
+  </div>
+
+  <!-- Win screen overlay -->
+  <div class="win-overlay" id="win-overlay">
+    <h1 id="win-title"></h1>
+    <p id="win-subtitle"></p>
+    <button class="play-again-btn" onclick="window._tttRestart()">Play Again</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  // ================================================================
+  /*=== TTT PURE LOGIC ===*/
+  (function(root) {
+    'use strict';
+
+    var TTT = {};
+
+    // --- HERO DEFINITIONS ---
+    TTT.HEROES = {
+      chickaletta: {
+        name: 'Chickaletta',
+        emoji: '\uD83D\uDC14',
+        maxHealth: 80,
+        attackSpeed: 120,     // ms — faster
+        scorePerHit: 30,       // bigger score per correct hit
+        damage: 25,            // damage to monsters
+        ability: 'Flap Burst'
+      },
+      grapefruit: {
+        name: 'Grapefruit',
+        emoji: '\uD83E\uDD96',
+        maxHealth: 150,
+        attackSpeed: 180,      // slower
+        scorePerHit: 15,       // lower score per hit
+        damage: 20,
+        ability: 'Chomp!'
+      }
+    };
+
+    var DIFFICULTY_PRESETS = {
+      Easy:   { minTable: 1, maxTable: 5, timeLimit: 15 },
+      Medium: { minTable: 3, maxTable: 7, timeLimit: 12 },
+      Hard:   { minTable: 5, maxTable: 9, timeLimit: 9 }
+    };
+
+    // --- QUESTION GENERATION ---
+    function makeQuestion(cfg, rng) {
+      rng = rng || Math.random;
+      var minT = (cfg && cfg.minTable != null) ? cfg.minTable : 1;
+      var maxT = (cfg && cfg.maxTable != null) ? cfg.maxTable : 5;
+
+      // If practiceTables is set, only generate questions for those tables
+      var ptSet = null;
+      if (cfg && cfg.practiceTables && cfg.practiceTables.length > 0) {
+        ptSet = {};
+        for (var _i = 0; _i < cfg.practiceTables.length; _i++) {
+          ptSet[cfg.practiceTables[_i]] = true;
+        }
+      }
+
+      // Pick two numbers in range
+      function pickIn(rngFn) {
+        return Math.floor(rngFn() * (maxT - minT + 1)) + minT;
+      }
+
+      var a, b;
+      var attempts = 0;
+      do {
+        a = pickIn(rng);
+        b = pickIn(rng);
+        attempts++;
+        if (attempts > 50) break; // fallback after many attempts
+      } while (ptSet && !(ptSet[a] && ptSet[b]));
+
+      var answer = a * b;
+
+      // Generate 3 unique distractors close to the answer
+      var choices = new Set([answer]);
+      var attempts = 0;
+      while (choices.size < 4 && attempts < 100) {
+        var offset = Math.floor(rng() * 20) - 10; // ±10
+        if (offset === 0) offset = 1 + Math.floor(rng() * 9);
+        var distractor = answer + offset;
+        if (distractor > 0 && !choices.has(distractor)) {
+          choices.add(distractor);
+        }
+        attempts++;
+      }
+      // Fill remaining with safe defaults
+      while (choices.size < 4) {
+        var fallback = answer + choices.size * 7;
+        if (!choices.has(fallback)) choices.add(fallback);
+      }
+
+      var arr = Array.from(choices);
+      // Fisher-Yates shuffle
+      for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(rng() * (i + 1));
+        var tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+      }
+
+      var correctIndex = arr.indexOf(answer);
+
+      return { a: a, b: b, answer: answer, choices: arr, correctIndex: correctIndex };
+    }
+    TTT.makeQuestion = makeQuestion;
+
+    // --- CHECK ANSWER ---
+    function isCorrect(q, index) {
+      return q.choices[index] === q.answer;
+    }
+    TTT.isCorrect = isCorrect;
+
+    // --- COMBO MULTIPLIER ---
+    function comboMult(combo) {
+      if (combo < 3) return 1;
+      if (combo < 6) return 1.5;
+      return 2;
+    }
+    TTT.comboMult = comboMult;
+
+    // --- XP FOR CORRECT ANSWER ---
+    function xpForCorrect(hero, combo) {
+      var base = hero.scorePerHit;
+      return Math.round(base * comboMult(combo));
+    }
+    TTT.xpForCorrect = xpForCorrect;
+
+    // --- COINS FOR CORRECT ANSWER ---
+    function coinsForCorrect(hero, combo) {
+      var base = Math.max(1, hero.scorePerHit / 5 | 0);
+      return Math.round(base * comboMult(combo));
+    }
+    TTT.coinsForCorrect = coinsForCorrect;
+
+    // --- APPLY HIT TO MONSTER (returns updated state) ---
+    function applyHitToMonster(monster, dmg) {
+      var newHp = Math.max(0, monster.hp - dmg);
+      return {
+        hp: newHp,
+        maxHp: monster.maxHp,
+        defeated: newHp <= 0
+      };
+    }
+    TTT.applyHitToMonster = applyHitToMonster;
+
+    // --- APPLY HIT BACK TO HERO (shield first, then health) ---
+    function applyHitBackToHero(heroState, dmg) {
+      var shield = heroState.shield || 0;
+      var health = heroState.health || 0;
+
+      if (shield >= dmg) {
+        return {
+          shield: shield - dmg,
+          health: health,
+          defeated: false
+        };
+      } else {
+        dmg -= shield;
+        shield = 0;
+        var newHealth = Math.max(0, health - dmg);
+        return {
+          shield: 0,
+          health: newHealth,
+          defeated: newHealth <= 0
+        };
+      }
+    }
+    TTT.applyHitBackToHero = applyHitBackToHero;
+
+    // --- TIME LIMIT FOR DIFFICULTY ---
+    function timeLimitFor(cfg) {
+      if (!cfg || typeof cfg.timeLimit !== 'number' || !Number.isFinite(cfg.timeLimit)) {
+        var key = (cfg && cfg.difficulty) ? String(cfg.difficulty) : '';
+        var preset = DIFFICULTY_PRESETS[key];
+        if (preset && preset.timeLimit != null) return preset.timeLimit;
+        // Normalise first letter to uppercase
+        if (key.length > 0) {
+          var normalized = key.charAt(0).toUpperCase() + key.slice(1);
+          preset = DIFFICULTY_PRESETS[normalized];
+          if (preset && preset.timeLimit != null) return preset.timeLimit;
+        }
+        // Fallback to first available preset
+        var fallbackKey = Object.keys(DIFFICULTY_PRESETS)[0];
+        return DIFFICULTY_PRESETS[fallbackKey].timeLimit;
+      }
+      return cfg.timeLimit;
+    }
+    TTT.timeLimitFor = timeLimitFor;
+
+    // --- XP NEEDED FOR NEXT LEVEL ---
+    function nextLevelXp(level) {
+      return 10 + level * 15; // monotonic: 25, 40, 55, ...
+    }
+    TTT.nextLevelXp = nextLevelXp;
+
+    // --- MULTI-ROOM DUNGEON & BOSS LOGIC ---
+    var ROOMS = [
+      { id: 0, name: 'Grass Dungeon',   theme: 'grass',    tableMin: 1,  tableMax: 3,  color: '#5DAE4F', bgColor1: '#76B947', bgColor2: '#6AAE37', monsterName: 'Slime', monsterEmoji: '🟢', monsterDamage: 5,  monsterHpValue: 50,  isBoss: false, specialMoveChance: 0, phases: [{ hpThreshold: 30 }] },
+      { id: 1, name: 'Lava Caverns',    theme: 'lava',    tableMin: 4,  tableMax: 6,  color: '#E74C3C', bgColor1: '#C0392B', bgColor2: '#A93226', monsterName: 'Golem', monsterEmoji: '🗿', monsterDamage: 8,  monsterHpValue: 95,  isBoss: false, specialMoveChance: 0, phases: [{ hpThreshold: 50 }, { hpThreshold: 75 }] },
+      { id: 2, name: 'Dark Forest',     theme: 'forest',  tableMin: 7,  tableMax: 9,  color: '#8E44AD', bgColor1: '#6C3483', bgColor2: '#5B2C6F', monsterName: 'Wolf',  monsterEmoji: '🐺', monsterDamage: 12, monsterHpValue: 130, isBoss: false, specialMoveChance: 0, phases: [{ hpThreshold: 70 }, { hpThreshold: 100 }] },
+      { id: 3, name: 'Times-Table Dragon Lair', theme: 'dragon', tableMin: 1, tableMax: 9, color: '#FF4500', bgColor1: '#B71C1C', bgColor2: '#880E4F', monsterName: 'Dragon', monsterEmoji: '🐉', monsterDamage: 15, monsterHpValue: 200, isBoss: true, specialMoveChance: 0.15, phases: [{ hpThreshold: 120 }, { hpThreshold: 170 }] }
+    ];
+
+    var COMBO_FEEDBACKS = {
+      '0-2': null,
+      '3-4': 'Hot streak! \uD83D\uDD25',
+      '5-7': 'Unstoppable! \uD83D\uDCAA',
+      '8-9': 'Legend! \u26A1',
+      '10-14': 'Godlike! \uD83C\uDF1F',
+      '15+': 'Beyond mortal! \uD83D\uDC51'
+    };
+
+    function startDungeon(difficulty) {
+      var dungeonState = {
+        currentRoomIndex: 0,
+        roomsCleared: new Array(ROOMS.length).fill(false),
+        bossSpecialUsed: false,
+        totalRooms: ROOMS.length,
+        difficulty: difficulty || 'medium',
+        monsterStates: [],
+        monsterState: { hp: 0, maxHp: 200 } // set for phase check; updated by startRoom() on entry
+      };
+      return dungeonState;
+    }
+
+    function nextRoom(dungeonState) {
+      if (dungeonState.currentRoomIndex < dungeonState.totalRooms - 1) {
+        dungeonState.currentRoomIndex++;
+        return { roomIndex: dungeonState.currentRoomIndex, exhausted: false };
+      }
+      return { roomIndex: dungeonState.currentRoomIndex, exhausted: true };
+    }
+
+    function getPhase(monsterState, damageDealt) {
+      if (!monsterState || !monsterState.maxHp || monsterState.maxHp <= 0) return 0;
+      var maxHp = monsterState.maxHp;
+      var hpRatio = Math.max(0, monsterState.hp) / maxHp;
+
+      // Phases go backwards based on remaining HP ratio
+      if (hpRatio > 2/3) return 0;
+      if (hpRatio > 1/3) return 1;
+      return 2;
+    }
+
+    function shouldSpecialMove(dungeonState, roomNumber) {
+      var room = ROOMS[roomNumber];
+      if (!room || !room.isBoss) return false;
+      if (dungeonState && dungeonState.bossSpecialUsed) return false;
+      // Deterministic in final phase: when monster HP <= 0 (final phase reached), always trigger
+      var ms = dungeonState && dungeonState.monsterState;
+      if (ms && getPhase(ms, (ms.maxHp || 1) - ms.hp) === 2) return true;
+      return false;
+    }
+
+    function isBossDefeated(monsterState) {
+      return !!(monsterState && monsterState.hp <= 0);
+    }
+
+    function isDungeonCleared(dungeonState) {
+      if (!dungeonState) return false;
+      for (var i = 0; i < dungeonState.roomsCleared.length; i++) {
+        if (dungeonState.roomsCleared[i] !== true) return false;
+      }
+      // Also need boss monster defeated (hp <= 0)
+      var lastRoomIdx = dungeonState.totalRooms - 1;
+      var ms = dungeonState.monsterStates ? dungeonState.monsterStates[lastRoomIdx] : null;
+      if (ms && ms.hp > 0) return false;
+      return true;
+    }
+
+    function makeRoomQuestions(roomNumber, count) {
+      count = count || 5;
+      var room = ROOMS[roomNumber];
+      if (!room) return [];
+      var questions = [];
+      for (var i = 0; i < count; i++) {
+        var minT = room.tableMin != null ? room.tableMin : 1;
+        var maxT = room.tableMax != null ? room.tableMax : 9;
+        var a = Math.floor(Math.random() * (maxT - minT + 1)) + minT;
+        var b = Math.floor(Math.random() * (maxT - minT + 1)) + minT;
+        questions.push({ a: a, b: b, answer: a * b });
+      }
+      return questions;
+    }
+
+    function getComboFeedback(combo) {
+      var keys = Object.keys(COMBO_FEEDBACKS);
+      for (var i = 0; i < keys.length; i++) {
+        var rangeStr = keys[i];
+        var value = COMBO_FEEDBACKS[rangeStr];
+        if (value === null) continue;
+        var dashIdx = rangeStr.indexOf('-');
+        var low, high;
+        if (dashIdx === -1 && rangeStr.endsWith('+')) {
+          low = parseInt(rangeStr, 10);
+          high = Infinity;
+        } else {
+          low = parseInt(rangeStr.slice(0, dashIdx), 10);
+          high = parseInt(rangeStr.slice(dashIdx + 1), 10);
+        }
+        if (combo >= low && combo <= high) return value;
+      }
+      return null;
+    }
+
+    function getRoomThemeColor(roomNumber) {
+      var room = ROOMS[roomNumber];
+      return room ? room.color : '#5DAE4F';
+    }
+
+    var _lastComboMilestone = -1;
+    function getOrClearComboFeedback(combo) {
+      if (combo <= _lastComboMilestone) return null;
+      var fb = getComboFeedback(combo);
+      if (fb !== null) {
+        _lastComboMilestone = combo;
+        return fb;
+      }
+      return null;
+    }
+
+    // Attach all new dungeon functions to the TTT namespace
+    TTT.ROOMS = ROOMS;
+    TTT.COMBO_FEEDBACKS = COMBO_FEEDBACKS;
+    TTT.startDungeon = startDungeon;
+    TTT.nextRoom = nextRoom;
+    TTT.getPhase = getPhase;
+    TTT.shouldSpecialMove = shouldSpecialMove;
+    TTT.isBossDefeated = isBossDefeated;
+    TTT.isDungeonCleared = isDungeonCleared;
+    TTT.makeRoomQuestions = makeRoomQuestions;
+    TTT.getComboFeedback = getComboFeedback;
+    TTT.getOrClearComboFeedback = getOrClearComboFeedback;
+    TTT.getRoomThemeColor = getRoomThemeColor;
+
+    // Expose namespace
+    if (typeof window !== 'undefined') {
+      window.TTT = TTT;
+      window._tttStartDungeon = TTT.startDungeon;
+      window._tttRestart = function() { restartGame(); };
+    } else {
+      root.TTT = TTT;
+    }
+
+  })(typeof window !== 'undefined' ? window : globalThis);
+  /*===/TTT PURE LOGIC===*/
+  // ================================================================
+
+
+  // ================================================================
+  // === RENDERING / GAME LAYER (outside pure logic block) ===
+  // ================================================================
+
+  var canvas = document.getElementById('main-canvas');
+  var ctx = canvas.getContext('2d');
+  var container = document.getElementById('game-container');
+
+  // Game state
+  var gameState = {
+    screen: 'select',      // 'select' | 'playing' | 'pause' | 'question'
+    selectedHero: null,
+    heroState: null,
+    monster: null,
+    currentQuestion: null,
+    questionIndex: -1,     // index into answer choices for current question
+    combo: 0,
+    totalXp: 0,
+    coins: 0,
+    roomNumber: 1,
+    levelXp: 0,            // XP toward next level
+    maxLevelXp: 25,
+    timerValue: 0,
+    timerMax: 10,
+    timerActive: false,
+    timerInterval: null,
+    difficulty: 'medium',
+    cfg: { minTable: 3, maxTable: 7, timeLimit: 12, practiceTables: [] },
+    particles: [],         // active particle effects
+    shakeDuration: 0,
+    shakeOffset: { x: 0, y: 0 },
+    encLinesIndex: 0,
+    floatingTexts: [],     // floating score popups
+    monsterBob: 0,
+    heroBob: 0,
+    selectedHeroCard: null, // which card was clicked
+    isPaused: false,
+    dungeonState: null,    // TTT startDungeon() result — tracks room progress
+    gameWon: false         // true after defeating the boss
+  };
+
+  var ENCOURAGE_CORRECT = [
+    'Nailed it!', 'Awesome!', 'You\'re a star! 🌟', 'Brilliant!',
+    'Super math!', 'Keep it up!', 'Incredible!'
+  ];
+
+  var ENCOURAGE_WRONG = [
+    'Ouch! One more try!', 'Almost there!', 'So close!',
+    'You\'ll get it next time!', 'Not this one — try again!'
+  ];
+
+  // --- CANVAS DRAWING HELPERS ---
+
+  function clearCanvas() {
+    ctx.fillStyle = '#76B947'; // grass green
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Dirt layer
+    ctx.fillStyle = '#8B6F47';
+    ctx.fillRect(0, canvas.height - 120, canvas.width, 40);
+    ctx.fillStyle = '#6B4F30';
+    ctx.fillRect(0, canvas.height - 80, canvas.width, 40);
+
+    // Sky area (top half)
+    ctx.fillStyle = '#87CEEB';
+    ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+  }
+
+  function drawBlockyHero(x, y, size, bobOffset, color1, color2, isAttacking) {
+    var bob = Math.sin(bobOffset) * 4;
+    ctx.save();
+    ctx.translate(x + size/2, y + size/2 + bob);
+
+    if (isAttacking) {
+      ctx.scale(1.15, 1.15);
+    }
+
+    // Body (stacked cubes — blocky game style)
+    // Main body
+    ctx.fillStyle = color1;
+    var bw = size * 0.7, bh = size * 0.8;
+    ctx.fillRect(-bw/2, -bh/2, bw, bh);
+
+    // Darker bottom for depth
+    ctx.fillStyle = color2;
+    ctx.fillRect(-bw/2, bh/4, bw, bh/4);
+
+    // Head (slightly larger block on top)
+    var headSize = size * 0.55;
+    ctx.fillStyle = color1;
+    ctx.fillRect(headSize/2 - headSize*0.6, -bh/2 - headSize + 8, headSize, headSize);
+
+    // Eyes
+    ctx.fillStyle = '#fff';
+    var eyeSize = 8;
+    ctx.fillRect(headSize/2 - 12, -bh/2 - headSize + 20, eyeSize, eyeSize);
+    ctx.fillRect(headSize/2 + 4, -bh/2 - headSize + 20, eyeSize, eyeSize);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(headSize/2 - 8, -bh/2 - headSize + 24, 3, 3);
+    ctx.fillRect(headSize/2 + 8, -bh/2 - headSize + 24, 3, 3);
+
+    // Nose/beak or mouth detail
+    if (isAttacking) {
+      // Open mouth for attack
+      ctx.fillStyle = '#FF6B6B';
+      ctx.fillRect(headSize/2 - 8, -bh/2 - headSize + 40, 16, 8);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(headSize/2 - 6, -bh/2 - headSize + 40, 4, 4);
+      ctx.fillRect(headSize/2 + 2, -bh/2 - headSize + 40, 4, 4);
+    }
+
+    // Arms (blocky)
+    var armW = size * 0.15, armH = size * 0.6;
+    ctx.fillStyle = color1;
+    ctx.fillRect(-bw/2 - armW*0.8, -bh/4, armW, armH);
+    ctx.fillRect(bw/2 + armW*0.8, -bh/4, armW, armH);
+
+    // Feet
+    var footSize = size * 0.12;
+    ctx.fillStyle = color2;
+    ctx.fillRect(-bw/3, bh/2 + 2, footSize*3, footSize);
+    ctx.fillRect(bw/6, bh/2 + 2, footSize*3, footSize);
+
+    // Highlight for 3D effect (light on top-right)
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(-bw/2, -bh/2, bw, bh * 0.1);
+
+    ctx.restore();
+  }
+
+  function drawBlockyMonster(x, y, size, bobOffset, hpPercent) {
+    var bob = Math.sin(bobOffset) * 5;
+    ctx.save();
+    ctx.translate(x + size/2, y + size/2 + bob);
+
+    // Monster body — dark purple, blocky
+    var bw = size * 0.9, bh = size;
+    var c1 = '#8B00D0'; // purple
+    var c2 = '#6A00A0';
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(-bw/2 - 4, bh/2 + 4, bw + 8, 12);
+
+    // Main body
+    ctx.fillStyle = c1;
+    ctx.fillRect(-bw/2, -bh/2, bw, bh);
+
+    // Darker bottom
+    ctx.fillStyle = c2;
+    ctx.fillRect(-bw/2, bh/4, bw, bh/4);
+
+    // Spikes on top
+    ctx.fillStyle = '#B030FF';
+    for (var si = 0; si < 5; si++) {
+      var sx = -bw/2 + (bw / 5) * si + bw / 10;
+      ctx.beginPath();
+      ctx.moveTo(sx - 8, -bh/2);
+      ctx.lineTo(sx, -bh/2 - 16);
+      ctx.lineTo(sx + 8, -bh/2);
+      ctx.fill();
+    }
+
+    // Eyes (menacing)
+    var eyeSize = size * 0.15;
+    ctx.fillStyle = '#FF0000';
+    ctx.fillRect(-bw/4 - eyeSize/2, -bh/3, eyeSize, eyeSize);
+    ctx.fillRect(bw/4 - eyeSize/2, -bh/3, eyeSize, eyeSize);
+    ctx.fillStyle = '#FFF';
+    ctx.fillRect(-bw/4 - eyeSize/4, -bh/3 + 2, eyeSize/3, eyeSize/3);
+    ctx.fillRect(bw/4 - eyeSize/4, -bh/3 + 2, eyeSize/3, eyeSize/3);
+
+    // Mouth (sharp teeth)
+    ctx.fillStyle = '#FF0000';
+    ctx.fillRect(-bw/4, bh/5, bw/2, bh * 0.15);
+    ctx.fillStyle = '#fff';
+    for (var ti = 0; ti < 4; ti++) {
+      var tx = -bw/4 + (bw/8) * ti;
+      ctx.fillRect(tx + 3, bh/5 + 2, 6, 5);
+    }
+
+    // Arms
+    ctx.fillStyle = c1;
+    ctx.fillRect(-bw/2 - size*0.15, -bh/6, size*0.15, bh * 0.7);
+    ctx.fillRect(bw/2, -bh/6, size*0.15, bh * 0.7);
+
+    // HP bar above body (if damaged)
+    if (hpPercent < 1) {
+      var barW = bw;
+      ctx.fillStyle = '#333';
+      ctx.fillRect(-barW/2, -bh/2 - 24, barW, 8);
+      ctx.fillStyle = hpPercent > 0.5 ? '#4CAF50' : (hpPercent > 0.25 ? '#FF9800' : '#F44336');
+      ctx.fillRect(-barW/2, -bh/2 - 24, barW * hpPercent, 8);
+    }
+
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(-bw/2, -bh/2, bw, bh * 0.1);
+
+    ctx.restore();
+  }
+
+  function drawHeart(x, y, size, filled) {
+    var s = size;
+    if (filled) {
+      ctx.fillStyle = '#E74C3C';
+    } else {
+      ctx.fillStyle = '#555';
+    }
+    // Simple heart shape using rectangles (blocky style)
+    ctx.fillRect(x, y + s*0.25, s, s);
+    ctx.fillRect(x + s*0.75, y + s*0.25, s, s);
+    ctx.fillRect(x - s*0.25, y + s*0.6, s * 1.5, s * 0.3);
+    ctx.fillRect(x + s*0.25, y + s*0.9, s * 0.5, s * 0.3);
+
+    // Shine
+    if (filled) {
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillRect(x + s*0.1, y + s*0.3, s*0.3, s*0.3);
+    }
+  }
+
+  // --- PARTICLE SYSTEM ---
+  function spawnParticles(x, y, count, color) {
+    for (var i = 0; i < count; i++) {
+      gameState.particles.push({
+        x: x + (Math.random() - 0.5) * 30,
+        y: y + (Math.random() - 0.5) * 30,
+        vx: (Math.random() - 0.5) * 8,
+        vy: (Math.random() - 0.5) * 8 - 2,
+        life: 1,
+        decay: 0.02 + Math.random() * 0.03,
+        size: 4 + Math.random() * 8,
+        color: color || '#FFD700'
+      });
+    }
+  }
+
+  function updateParticles(dt) {
+    for (var i = gameState.particles.length - 1; i >= 0; i--) {
+      var p = gameState.particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.2; // gravity
+      p.life -= p.decay;
+      if (p.life <= 0) {
+        gameState.particles.splice(i, 1);
+      }
+    }
+  }
+
+  function drawParticles() {
+    for (var i = 0; i < gameState.particles.length; i++) {
+      var p = gameState.particles[i];
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function spawnFloatingText(x, y, text, color) {
+    gameState.floatingTexts.push({
+      x: x, y: y, text: text, color: color || '#FFD700',
+      life: 1, vy: -2
+    });
+  }
+
+  function updateFloatingText(dt) {
+    for (var i = gameState.floatingTexts.length - 1; i >= 0; i--) {
+      var ft = gameState.floatingTexts[i];
+      ft.y += ft.vy;
+      ft.life -= 0.025;
+      if (ft.life <= 0) {
+        gameState.floatingTexts.splice(i, 1);
+      }
+    }
+  }
+
+  function drawFloatingTexts() {
+    for (var i = 0; i < gameState.floatingTexts.length; i++) {
+      var ft = gameState.floatingTexts[i];
+      ctx.globalAlpha = Math.max(0, ft.life);
+      ctx.fillStyle = ft.color;
+      ctx.font = 'bold 28px Arial Black, Impact, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      ctx.strokeText(ft.text, ft.x, ft.y);
+      ctx.fillText(ft.text, ft.x, ft.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // --- SCREEN SHAKE ---
+  function triggerShake(duration) {
+    gameState.shakeDuration = duration;
+  }
+
+  function updateShake(dt) {
+    if (gameState.shakeDuration > 0) {
+      gameState.shakeDuration -= dt;
+      var intensity = Math.ceil(gameState.shakeDuration * 30);
+      gameState.shakeOffset.x = (Math.random() - 0.5) * intensity;
+      gameState.shakeOffset.y = (Math.random() - 0.5) * intensity;
+    } else {
+      gameState.shakeOffset.x = 0;
+      gameState.shakeOffset.y = 0;
+    }
+  }
+
+  // --- WEB AUDIO ---
+  var audioCtx = null;
+
+  function getAudioCtx() {
+    if (!audioCtx) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch(e) {}
+    }
+    return audioCtx;
+  }
+
+  function playCorrectBlip() {
+    var ac = getAudioCtx();
+    if (!ac) return;
+    try {
+      var osc = ac.createOscillator();
+      var gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(440, ac.currentTime);
+      osc.frequency.linearRampToValueAtTime(880, ac.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.3, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.3);
+      osc.start(ac.currentTime);
+      osc.stop(ac.currentTime + 0.3);
+    } catch(e) {}
+  }
+
+  function playWrongBuzz() {
+    var ac = getAudioCtx();
+    if (!ac) return;
+    try {
+      var osc = ac.createOscillator();
+      var gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, ac.currentTime);
+      osc.frequency.linearRampToValueAtTime(80, ac.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.2, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.4);
+      osc.start(ac.currentTime);
+      osc.stop(ac.currentTime + 0.4);
+    } catch(e) {}
+  }
+
+  function playHitImpact() {
+    var ac = getAudioCtx();
+    if (!ac) return;
+    try {
+      // Short noise burst
+      var bufferSize = ac.sampleRate * 0.1;
+      var buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
+      var data = buffer.getChannelData(0);
+      for (var i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+      }
+      var source = ac.createBufferSource();
+      source.buffer = buffer;
+      var gain = ac.createGain();
+      source.connect(gain);
+      gain.connect(ac.destination);
+      gain.gain.setValueAtTime(0.3, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.15);
+      source.start(ac.currentTime);
+    } catch(e) {}
+  }
+
+  function playMonsterHit() {
+    var ac = getAudioCtx();
+    if (!ac) return;
+    try {
+      var osc = ac.createOscillator();
+      var gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(200, ac.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(60, ac.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.25, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.4);
+      osc.start(ac.currentTime);
+      osc.stop(ac.currentTime + 0.4);
+    } catch(e) {}
+  }
+
+  // --- HUD UPDATES ---
+  var heartsEl = document.getElementById('hearts-display');
+  var coinEl = document.getElementById('coin-display');
+  var comboEl = document.getElementById('combo-display');
+  var xpFillEl = document.getElementById('xp-fill');
+  var xpTextEl = document.getElementById('xp-text');
+  var monsterHpBarEl = document.getElementById('monster-hp-fill');
+  var monsterHpTextEl = document.getElementById('monster-hp-text');
+  var timerFillEl = document.getElementById('timer-fill');
+  var questionTextEl = document.getElementById('question-text');
+  var roomInfoEl = document.getElementById('room-info');
+  var answerBlocksEl = document.getElementById('answer-blocks');
+
+  // Click event delegation for answer blocks — fixes issue #23
+  answerBlocksEl.addEventListener('click', function(e) {
+    if (gameState.screen !== 'playing' || !gameState.currentQuestion) return;
+    var clickedBlock = e.target.closest('.answer-block');
+    if (!clickedBlock) return;
+    var idx = parseInt(clickedBlock.getAttribute('data-index'), 10);
+    if (isNaN(idx) || idx < 0 || idx > 3) return;
+    e.preventDefault();
+
+    if (TTT.isCorrect(gameState.currentQuestion, idx)) {
+      handleCorrectAnswer(idx);
+    } else {
+      handleWrongAnswer();
+    }
+  });
+
+  function updateHUD() {
+    var hs = gameState.heroState;
+    if (!hs) return;
+
+    // Hearts — use configured lives count, red hearts only (no spades)
+    var hpRatio = Math.min(1, hs.health / TTT.HEROES[gameState.selectedHero].maxHealth);
+    var heartCount = gameState.lives || 3;
+    var filledHearts = Math.ceil(hpRatio * heartCount);
+    heartsEl.innerHTML = '';
+    for (var i = 0; i < heartCount; i++) {
+      var span = document.createElement('span');
+      span.style.fontSize = '20px';
+      if (i < filledHearts) {
+        span.textContent = '\u2665';
+        span.style.color = '#E74C3C';
+      } else {
+        // Outlined heart in red, not a spade symbol
+        span.textContent = '\u2661';
+        span.style.color = '#E74C3C';
+      }
+      heartsEl.appendChild(span);
+    }
+
+    // Coins
+    coinEl.textContent = '🪙 ' + gameState.coins;
+
+    // Combo
+    var cm = TTT.comboMult(gameState.combo);
+    comboEl.textContent = 'Combo: x' + cm.toFixed(1);
+    if (gameState.combo >= 3) {
+      comboEl.style.color = '#FF6B6B';
+    } else {
+      comboEl.style.color = '#FFD700';
+    }
+
+    // Combo milestone feedback — flash a message
+    var comboFeedbackTextEl = document.getElementById('combo-feedback');
+    if (comboFeedbackTextEl) {
+      var fb = TTT.getOrClearComboFeedback(gameState.combo);
+      if (fb) {
+        comboFeedbackTextEl.textContent = fb;
+        comboFeedbackTextEl.style.opacity = '1';
+        comboFeedbackTextEl.style.transform = 'translateX(-50%) scale(1.2)';
+        setTimeout(function() {
+          comboFeedbackTextEl.style.opacity = '0';
+          comboFeedbackTextEl.style.transform = 'translateX(-50%) scale(1)';
+        }, 1500);
+      }
+    }
+
+    // Dungeon map — show progress dots for rooms
+    var dungeonMapEl = document.getElementById('dungeon-map');
+    if (dungeonMapEl && gameState.dungeonState) {
+      dungeonMapEl.style.display = 'flex';
+      var ds = gameState.dungeonState;
+      var currentIdx = ds.currentRoomIndex;
+      var dots = dungeonMapEl.querySelectorAll('.map-dot');
+      for (var d = 0; d < dots.length; d++) {
+        if (ds.roomsCleared[d]) {
+          dots[d].className = 'map-dot map-dot-cleared';
+        } else if (d === currentIdx) {
+          dots[d].className = 'map-dot map-dot-active';
+        } else {
+          dots[d].className = 'map-dot map-dot-future';
+        }
+      }
+    }
+
+    // XP bar
+    var xpNeeded = TTT.nextLevelXp(Math.floor(gameState.totalXp / 100));
+    gameState.maxLevelXp = Math.max(xpNeeded, gameState.maxLevelXp);
+    var pct = Math.min(100, (gameState.levelXp / gameState.maxLevelXp) * 100);
+    xpFillEl.style.width = pct + '%';
+    xpTextEl.textContent = 'XP: ' + gameState.levelXp + ' / ' + gameState.maxLevelXp;
+
+    // Monster HP bar
+    if (gameState.monster) {
+      var mhp = Math.min(1, gameState.monster.hp / gameState.monster.maxHp);
+      monsterHpBarEl.style.width = (mhp * 100) + '%';
+      var isBossFight = gameState.monster.isBoss;
+
+      // Make boss HP bar more prominent with animated glow
+      if (isBossFight) {
+        monsterHpBarEl.style.boxShadow = '0 0 12px #FF4500, 0 0 24px #FF0000';
+        monsterHpBarEl.style.borderWidth = '3px';
+        monsterHpBarEl.style.borderColor = '#FF4500';
+      } else {
+        monsterHpBarEl.style.boxShadow = 'none';
+        monsterHpBarEl.style.borderWidth = '';
+        monsterHpBarEl.style.borderColor = '';
+      }
+
+      var phaseNames = ['Phase 1', 'Phase 2 🔥', 'Phase 3 💀'];
+      if (isBossFight && gameState.monster) {
+        var phase = TTT.getPhase(gameState.monster, 0);
+        monsterHpTextEl.textContent = 'Monster HP: ' + Math.round(gameState.monster.hp) + '/' + Math.round(gameState.monster.maxHp) + ' — ' + (phaseNames[phase] || 'Boss');
+      } else {
+        monsterHpTextEl.textContent = 'Monster HP: ' + Math.round(gameState.monster.hp) + '/' + Math.round(gameState.monster.maxHp);
+      }
+    }
+
+    // Timer
+    var timerPct = Math.min(1, gameState.timerValue / gameState.timerMax);
+    timerFillEl.style.width = (timerPct * 100) + '%';
+  }
+
+  function updateAnswerBlocks(question) {
+    answerBlocksEl.innerHTML = '';
+    if (!question) return;
+
+    for (var i = 0; i < 4; i++) {
+      var block = document.createElement('div');
+      block.className = 'answer-block';
+      block.setAttribute('data-index', i);
+      block.innerHTML = question.choices[i] + '<span class="key-hint">[' + (i + 1) + ']</span>';
+      answerBlocksEl.appendChild(block);
+    }
+  }
+
+  function showEncouragingLine(isCorrect, answerText) {
+    var lines = isCorrect ? ENCOURAGE_CORRECT : ENCOURAGE_WRONG;
+    if (!isCorrect && gameState.currentQuestion) {
+      // Show correct answer for wrong answers
+      lines = [lines[0] + ' The answer is ' + gameState.currentQuestion.answer + '.'];
+    }
+    var line = lines[Math.floor(Math.random() * lines.length)];
+
+    var el = document.createElement('div');
+    el.className = 'encourage-text';
+    el.textContent = line;
+    document.getElementById('game-container').appendChild(el);
+    setTimeout(function() { el.remove(); }, 1800);
+  }
+
+  function startTimer() {
+    if (gameState.timerInterval) clearInterval(gameState.timerInterval);
+    gameState.timerValue = gameState.timerMax;
+    gameState.timerActive = true;
+
+    gameState.timerInterval = setInterval(function() {
+      if (!gameState.timerActive || gameState.isPaused) return;
+      gameState.timerValue -= 0.1;
+      if (gameState.timerValue <= 0) {
+        gameState.timerValue = 0;
+        handleWrongAnswer(); // timeout counts as wrong
+      }
+    }, 100);
+  }
+
+  function stopTimer() {
+    if (gameState.timerInterval) {
+      clearInterval(gameState.timerInterval);
+      gameState.timerInterval = null;
+    }
+    gameState.timerActive = false;
+  }
+
+  // --- GAME FLOW ---
+
+  function selectHero(heroName) {
+    gameState.selectedHero = heroName;
+    var heroDef = TTT.HEROES[heroName];
+    gameState.heroState = {
+      health: heroDef.maxHealth,
+      shield: Math.floor(heroDef.maxHealth * 0.2),
+      maxShield: Math.floor(heroDef.maxHealth * 0.2)
+    };
+
+    // Initialize dungeon
+    gameState.dungeonState = TTT.startDungeon(gameState.difficulty);
+    gameState.gameWon = false;
+    gameState.roomNumber = 1;
+
+    document.getElementById('hero-select').style.display = 'none';
+    roomInfoEl.style.display = 'block';
+
+    startRoom();
+  }
+
+  function startRoom() {
+    var dungeonState = gameState.dungeonState;
+    var roomIdx = dungeonState ? dungeonState.currentRoomIndex : 0;
+    var room = TTT.ROOMS[roomIdx] || TTT.ROOMS[0];
+
+    if (dungeonState) {
+      dungeonState.roomsCleared[roomIdx] = true;
+    }
+
+    gameState.monster = {
+      hp: room.monsterHpValue,
+      maxHp: room.monsterHpValue,
+      isBoss: !!room.isBoss,
+      phase: 0
+    };
+
+    // Update room info display
+    var isBoss = room.isBoss ? ' (BOSS!)' : '';
+    roomInfoEl.textContent = room.name + isBoss;
+
+    // Enable dungeon map for non-first rooms (and always show from room 2+)
+    document.getElementById('dungeon-map').style.display = 'flex';
+    if (!isBoss && roomIdx > 0) {
+      document.getElementById('dungeon-map').style.display = 'none';
+    }
+
+    // Store current room index for HUD/map rendering
+    gameState.currentRoomIndex = roomIdx;
+
+    pickNewQuestion();
+    document.getElementById('hero-select').style.display = 'none';
+  }
+
+  function advanceToNextRoom() {
+    var dungeonState = gameState.dungeonState;
+    var nextResult = TTT.nextRoom(dungeonState);
+    if (nextResult.exhausted) {
+      // No more rooms to advance — this shouldn't happen since boss is the last room
+      return;
+    }
+    var nextIdx = nextResult.roomIndex;
+    // Slight hero heal between rooms
+    if (gameState.heroState) {
+      var heroDef = TTT.HEROES[gameState.selectedHero];
+      gameState.heroState.health = Math.min(
+        heroDef.maxHealth,
+        gameState.heroState.health + Math.floor(heroDef.maxHealth * 0.25)
+      );
+    }
+    startRoom();
+  }
+
+  function pickNewQuestion() {
+    var roomIdx = gameState.currentRoomIndex || 0;
+    var room = TTT.ROOMS[roomIdx];
+    var q;
+    if (room && room.isBoss) {
+      // Boss rooms get questions from the player's practice tables
+      q = TTT.makeQuestion(gameState.cfg);
+    } else {
+      q = TTT.makeQuestion(gameState.cfg);
+    }
+    gameState.currentQuestion = q;
+    questionTextEl.textContent = q.a + ' × ' + q.b + ' = ?';
+    updateAnswerBlocks(q);
+    document.getElementById('hud-below').style.display = 'block';
+    document.getElementById('question-area').style.display = 'block';
+
+    // Reset timer for this question — pass full cfg so timeLimitSec from settings is respected
+    gameState.timerMax = TTT.timeLimitFor(gameState.cfg || { difficulty: gameState.difficulty });
+    startTimer();
+  }
+
+  function handleCorrectAnswer(index) {
+    if (gameState.isPaused || !gameState.currentQuestion) return;
+
+    var q = gameState.currentQuestion;
+    if (!TTT.isCorrect(q, index)) return; // should not happen with block click
+
+    stopTimer();
+
+    // Score and XP
+    gameState.combo++;
+    var xp = TTT.xpForCorrect(TTT.HEROES[gameState.selectedHero], gameState.combo);
+    var coins = TTT.coinsForCorrect(TTT.HEROES[gameState.selectedHero], gameState.combo);
+    gameState.totalXp += xp;
+    gameState.levelXp += xp;
+    gameState.coins += coins;
+
+    // Monster takes damage
+    var heroDmg = TTT.HEROES[gameState.selectedHero].damage;
+    var result = TTT.applyHitToMonster(gameState.monster, heroDmg);
+    gameState.monster.hp = result.hp;
+    gameState.monster.maxHp = result.maxHp;
+
+    // Juice!
+    playCorrectBlip();
+    triggerShake(0.3);
+
+    var heroX = canvas.width * 0.25;
+    var heroY = canvas.height * 0.55;
+    spawnParticles(heroX, heroY, 15, '#4CAF50');
+    spawnParticles(canvas.width * 0.7, canvas.height * 0.5, 20, '#FFD700');
+
+    // Check for boss special move (triggered on correct answers during boss)
+    if (gameState.dungeonState && gameState.monster && gameState.monster.isBoss) {
+      var roomIdx = gameState.currentRoomIndex || 0;
+      var roomDef = TTT.ROOMS[roomIdx];
+      var chance = roomDef ? roomDef.specialMoveChance : 0;
+      if (chance > 0 && TTT.shouldSpecialMove(gameState.dungeonState, roomIdx)) {
+        gameState.dungeonState.bossSpecialUsed = true;
+        // Speed up timer by 30% — reduce remaining time
+        var oldTime = gameState.timerValue;
+        gameState.timerValue = Math.max(1, oldTime * 0.7);
+        showBossSpecialMove();
+      }
+    }
+
+    var floatText = '+' + xp;
+    if (gameState.combo >= 3) floatText += ' x' + TTT.comboMult(gameState.combo).toFixed(1);
+    spawnFloatingText(canvas.width * 0.5, canvas.height * 0.3, floatText);
+
+    // Monster defeated?
+    if (result.defeated) {
+      playHitImpact();
+      showEncouragingLine(true);
+
+      var roomIdx = gameState.currentRoomIndex || 0;
+      var isBoss = TTT.ROOMS[roomIdx] && !!TTT.ROOMS[roomIdx].isBoss;
+
+      if (isBoss) {
+        // Boss defeated! — Show win screen after delay
+        setTimeout(function() {
+          showWinScreen();
+        }, 1500);
+      } else {
+        // Normal room — advance to next
+        setTimeout(function() {
+          advanceToNextRoom();
+        }, 1500);
+      }
+    } else {
+      showEncouragingLine(true);
+      setTimeout(function() {
+        pickNewQuestion();
+      }, 1200);
+    }
+
+    updateHUD();
+  }
+
+  function handleWrongAnswer() {
+    stopTimer();
+
+    // Decrement lives — if no lives left and hero is defeated, game over
+    gameState.lives = Math.max(0, (gameState.lives || 3) - 1);
+    updateHUD();
+
+    gameState.combo = 0;
+
+    var heroDef = TTT.HEROES[gameState.selectedHero];
+    var monsterDmg = Math.floor(5 + gameState.roomNumber * 2);
+    var result = TTT.applyHitBackToHero(gameState.heroState, monsterDmg);
+    gameState.heroState.shield = result.shield;
+    gameState.heroState.health = result.health;
+
+    // Juice
+    playWrongBuzz();
+    if (!result.defeated) {
+      playMonsterHit();
+    }
+
+    var heroX = canvas.width * 0.75;
+    spawnParticles(heroX, canvas.height * 0.5, 12, '#F44336');
+
+    // Monster counter-attack juice
+    var monX = canvas.width * 0.2;
+    spawnParticles(monX, canvas.height * 0.5, 8, '#8B00D0');
+    triggerShake(0.2);
+
+    showEncouragingLine(false);
+    updateHUD();
+
+    // Auto-revive if dead and still have lives left; otherwise game over
+    if (result.defeated && gameState.lives > 0) {
+      setTimeout(function() {
+        gameState.heroState.health = heroDef.maxHealth;
+        gameState.heroState.shield = heroDef.maxHealth * 0.2;
+        showEncouragingLine(true); // "You're back!" style
+        updateHUD();
+        pickNewQuestion();
+      }, 1500);
+    } else if (result.defeated && gameState.lives <= 0) {
+      // Game over: no lives remaining
+      setTimeout(function() {
+        showGameOverScreen();
+      }, 1500);
+    } else {
+      // New question after wrong (still same monster)
+      setTimeout(function() {
+        pickNewQuestion();
+      }, 1200);
+    }
+  }
+
+  function showBossSpecialMove() {
+    // Visual: red flash on the monster area + warning text
+    var monX = canvas.width * 0.2;
+    spawnParticles(monX, canvas.height * 0.5, 30, '#FF4500');
+    triggerShake(0.5);
+    playMonsterHit();
+
+    // Flash boss warning message on HUD
+    var hudBelow = document.getElementById('hud-below');
+    if (hudBelow) {
+      var warnEl = document.createElement('div');
+      warnEl.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;font-weight:bold;color:#FF4500;text-shadow:2px 2px 0 #000;pointer-events:none;z-index:100;';
+      warnEl.textContent = '⚠️ BOSS SPECIAL! ⚠️';
+      document.body.appendChild(warnEl);
+      setTimeout(function() {
+        if (document.body.contains(warnEl)) document.body.removeChild(warnEl);
+      }, 2000);
+    }
+  }
+
+  function showHeroSelectScreen() {
+    document.getElementById('hero-select').style.display = 'flex';
+    gameState.screen = 'select';
+  }
+
+  // --- WIN SCREEN ---
+  function showWinScreen() {
+    gameState.screen = 'win';
+    var winOverlay = document.getElementById('win-overlay');
+    if (!winOverlay) return;
+    winOverlay.style.display = 'flex';
+
+    var winTitleEl = document.getElementById('win-title');
+    var winSubEl = document.getElementById('win-subtitle');
+    var finalRoomIdx = gameState.currentRoomIndex || 0;
+    var roomName = (TTT.ROOMS[finalRoomIdx] && TTT.ROOMS[finalRoomIdx].name) || 'Times-Table Dragon Lair';
+
+    winTitleEl.textContent = 'You Did It! 🎉';
+    winSubEl.innerHTML =
+      'You defeated the <strong>' + roomName + '</strong> and cleared the dungeon!<br>' +
+      'XP earned: <strong>' + gameState.totalXp + '</strong> | ' +
+      'Coins collected: <strong>' + gameState.coins + ' 🪙</strong><br>' +
+      'Best combo streak: <strong>x' + TTT.comboMult(gameState.combo).toFixed(1) + '</strong>';
+  }
+
+  // --- GAME OVER SCREEN ---
+  function showGameOverScreen() {
+    gameState.screen = 'gameover';
+    var gameOverOverlay = document.getElementById('game-over-overlay');
+    if (!gameOverOverlay) return;
+    gameOverOverlay.classList.add('active');
+
+    var titleEl = document.getElementById('game-over-title');
+    var subEl = document.getElementById('game-over-subtitle');
+    if (titleEl) titleEl.textContent = "Let's Try Again!";
+    if (subEl) {
+      subEl.innerHTML =
+        'Keep practicing — you can do it!<br>' +
+        'XP earned: <strong>' + gameState.totalXp + '</strong> | ' +
+        'Coins collected: <strong>' + gameState.coins + ' 🪙</strong>';
+    }
+  }
+
+  function restartGame() {
+    // Reset all game state
+    document.getElementById('win-overlay').style.display = 'none';
+    var gameOverOverlay = document.getElementById('game-over-overlay');
+    if (gameOverOverlay) gameOverOverlay.classList.remove('active');
+    gameState.screen = 'settings';
+    gameState.selectedHero = null;
+    gameState.heroState = null;
+    gameState.monster = null;
+    gameState.currentQuestion = null;
+    gameState.questionIndex = -1;
+    gameState.combo = 0;
+    gameState.totalXp = 0;
+    gameState.coins = 0;
+    gameState.roomNumber = 1;
+    gameState.levelXp = 0;
+    gameState.timerValue = 0;
+    gameState.timerMax = 10;
+    gameState.dungeonState = null;
+    gameState.gameWon = false;
+    gameState.currentRoomIndex = 0;
+    gameState.lives = (_settings && _settings.lives) ? _settings.lives : 3;
+
+    roomInfoEl.style.display = 'none';
+    document.getElementById('hud-below').style.display = 'none';
+    document.getElementById('question-area').style.display = 'none';
+    openSettingsScreen();
+  }
+
+  // --- HERO SELECT CLICK HANDLERS ---
+  document.getElementById('hero-chickaletta').addEventListener('click', function() {
+    selectHero('chickaletta');
+  });
+
+  document.getElementById('hero-grapefruit').addEventListener('click', function() {
+    selectHero('grapefruit');
+  });
+
+  // --- MAIN RENDER LOOP ---
+  var lastTime = performance.now();
+
+  function render(now) {
+    var dt = (now - lastTime) / 1000;
+    lastTime = now;
+
+    // Update bob animations
+    gameState.monsterBob += dt * 3;
+    gameState.heroBob += dt * 4;
+
+    updateShake(dt);
+    updateParticles(dt);
+    updateFloatingText(dt);
+
+    // Apply shake offset
+    ctx.save();
+    ctx.translate(gameState.shakeOffset.x, gameState.shakeOffset.y);
+
+    clearCanvas();
+
+    // Draw room info (background blocks for game feel) — themed per dungeon room
+    var blockSize = 40;
+    var themeColor1 = '#76B947';
+    var themeColor2 = '#5A9E2A';
+    var baseColor = '#6AAE37';
+    if (gameState.dungeonState && gameState.dungeonState.currentRoomIndex != null) {
+      var room = TTT.ROOMS[gameState.dungeonState.currentRoomIndex];
+      if (room) {
+        themeColor1 = room.bgColor1 || '#76B947';
+        themeColor2 = room.bgColor2 || '#5A9E2A';
+        baseColor = room.color || '#6AAE37';
+      }
+    }
+    ctx.fillStyle = baseColor;
+    for (var bx = 0; bx < canvas.width; bx += blockSize) {
+      for (var by = canvas.height - 120; by < canvas.height; by += blockSize) {
+        if ((bx / blockSize + by / blockSize) % 2 === 0) {
+          ctx.fillStyle = themeColor1;
+        } else {
+          ctx.fillStyle = themeColor2;
+        }
+        ctx.fillRect(bx, by, blockSize - 1, blockSize - 1);
+      }
+    }
+
+    // Dirt blocks (themed: brown normally, reddish for lava, dark for forest)
+    var dirtColor = '#8B6F47';
+    if (gameState.dungeonState && gameState.dungeonState.currentRoomIndex != null) {
+      var room2 = TTT.ROOMS[gameState.dungeonState.currentRoomIndex];
+      if (room2) {
+        if (room2.id === 1) dirtColor = '#A93226';
+        else if (room2.id === 2) dirtColor = '#4A2C6F';
+        else if (room2.id === 3) dirtColor = '#880E4F';
+      }
+    }
+    ctx.fillStyle = dirtColor;
+    for (var dx = 0; dx < canvas.width; dx += blockSize) {
+      for (var dy = canvas.height - 80; dy < canvas.height - 40; dy += blockSize) {
+        ctx.fillRect(dx, dy, blockSize - 1, blockSize - 1);
+      }
+    }
+
+    // Grass tufts (themed per room)
+    var tuftColor = '#76B947';
+    if (gameState.dungeonState && gameState.dungeonState.currentRoomIndex != null) {
+      var roomTuft = TTT.ROOMS[gameState.dungeonState.currentRoomIndex];
+      if (roomTuft) {
+        if (roomTuft.id === 1) tuftColor = '#C0392B';
+        else if (roomTuft.id === 2) tuftColor = '#6C3483';
+        else if (roomTuft.id === 3) tuftColor = '#FF4500';
+      }
+    }
+    ctx.fillStyle = tuftColor;
+    for (var gx = 0; gx < canvas.width; gx += 80) {
+      ctx.fillRect(gx + 15, canvas.height - 122, 10, 6);
+      ctx.fillRect(gx + 35, canvas.height - 124, 10, 6);
+    }
+
+    // Hero sprite (right side)
+    if (gameState.selectedHero && gameState.screen === 'playing') {
+      var heroColor1 = gameState.selectedHero === 'chickaletta' ? '#FFD700' : '#E74C3C';
+      var heroColor2 = gameState.selectedHero === 'chickaletta' ? '#FFA500' : '#C0392B';
+      drawBlockyHero(
+        canvas.width * 0.6,
+        canvas.height * 0.35,
+        100,
+        gameState.heroBob,
+        heroColor1, heroColor2,
+        false // not attacking (attack anim could be added here)
+      );
+    }
+
+    // Monster sprite (left side)
+    if (gameState.monster && gameState.screen === 'playing') {
+      drawBlockyMonster(
+        canvas.width * 0.25,
+        canvas.height * 0.4,
+        120,
+        gameState.monsterBob,
+        Math.min(1, gameState.monster.hp / gameState.monster.maxHp)
+      );
+    }
+
+    // Draw particles and floating text
+    drawParticles();
+    drawFloatingTexts();
+
+    ctx.restore();
+
+    requestAnimationFrame(render);
+  }
+
+  // --- PROPER KEYBOARD CONTROLS ---
+  document.addEventListener('keydown', function(e) {
+    var key = e.key;
+
+    // Settings screen — Enter confirms and saves
+    if (gameState.screen === 'settings') {
+      if (key === 'Enter' || key === ' ') {
+        e.preventDefault();
+        saveAndApplySettings();
+      }
+      return;
+    }
+
+    // Hero select screen — Only clicking works on the hero cards
+    if (gameState.screen === 'select') {
+      return;
+    }
+
+    // Pause toggle
+    if ((key === 'p' || key === 'Escape') && gameState.screen === 'playing') {
+      e.preventDefault();
+      gameState.isPaused = !gameState.isPaused;
+      document.getElementById('pause-overlay').classList.toggle('active', gameState.isPaused);
+      return;
+    }
+
+    // Answer keys 1-4 (only when playing and not paused)
+    if ((key === '1' || key === '2' || key === '3' || key === '4') &&
+        gameState.screen === 'playing' && !gameState.isPaused) {
+      e.preventDefault();
+      var idx = parseInt(key) - 1;
+
+      if (!gameState.currentQuestion) return;
+
+      // Check if answer is correct
+      if (TTT.isCorrect(gameState.currentQuestion, idx)) {
+        handleCorrectAnswer(idx);
+      } else {
+        // Wrong answer via keyboard — delegate to shared handler
+        handleWrongAnswer();
+      }
+    }
+  });
+
+  // =============================================
+  // --- SETTINGS MODULE (inline, no external deps) ---
+  // =============================================
+
+  var TTT_Settings = (function() {
+    'use strict';
+
+    var DEFAULT_SETTINGS = Object.freeze({
+      range:             { min: 1, max: 5 },
+      questionsPerLevel: 10,
+      timeLimitSec:     15,
+      lives:              3,
+      practiceTables:   [],
+      preset:           'Easy'
+    });
+
+    var PRESETS = Object.freeze({
+      Easy: {
+        range:             { min: 1, max: 5 },
+        questionsPerLevel: 10,
+        timeLimitSec:     15,
+        lives:              3
+      },
+      Medium: {
+        range:             { min: 3, max: 7 },
+        questionsPerLevel: 12,
+        timeLimitSec:     10,
+        lives:              3
+      },
+      Hard: {
+        range:             { min: 5, max: 12 },
+        questionsPerLevel: 15,
+        timeLimitSec:      7,
+        lives:              2
+      }
+    });
+
+    function clamp(val, lo, hi) {
+      if (typeof val !== 'number' || !Number.isFinite(val)) return null;
+      var floored = Math.floor(val);
+      if (floored < lo || floored > hi) return null;
+      return floored;
+    }
+
+    function clampForced(val, lo, hi) {
+      if (typeof val !== 'number' || !Number.isFinite(val)) return null;
+      return Math.max(lo, Math.min(hi, Math.floor(val)));
+    }
+
+    /** Clamp all fields of `input` to sensible bounds. Returns a fresh object. */
+    function clampSettings(input, defaults) {
+      defaults = Object.assign({}, DEFAULT_SETTINGS, defaults);
+      var rangeInput = (input && input.range && typeof input.range === 'object' && !Array.isArray(input.range))
+        ? input.range : null;
+      var min, max;
+      if (rangeInput) {
+        min = (typeof rangeInput.min === 'number' && Number.isFinite(rangeInput.min)) ? rangeInput.min : defaults.range.min;
+        max = (typeof rangeInput.max === 'number' && Number.isFinite(rangeInput.max)) ? rangeInput.max : defaults.range.max;
+      } else if (input) {
+        min = (typeof input.min === 'number' && Number.isFinite(input.min)) ? input.min : defaults.range.min;
+        max = (typeof input.max === 'number' && Number.isFinite(input.max)) ? input.max : defaults.range.max;
+      } else {
+        min = defaults.range.min;
+        max = defaults.range.max;
+      }
+      if (min < 1) min = 1;
+      if (max > 12) max = 12;
+      if (min > max) { var tmp = min; min = max; max = tmp; }
+
+      function getNumeric(topKey, rangeKey) {
+        var ri = rangeInput && typeof rangeInput[rangeKey] === 'number' && Number.isFinite(rangeInput[rangeKey])
+          ? rangeInput[rangeKey] : null;
+        return ri != null ? ri : (input && typeof input[topKey] === 'number' && Number.isFinite(input[topKey])
+          ? input[topKey] : undefined);
+      }
+
+      var qpl = getNumeric('questionsPerLevel', 'questionsPerLevel');
+      qpl = qpl != null ? clampForced(qpl, 1, 50) : defaults.questionsPerLevel;
+      var tsec = getNumeric('timeLimitSec', 'timeLimitSec');
+      tsec = tsec != null ? clampForced(tsec, 1, 120) : defaults.timeLimitSec;
+      var lives = getNumeric('lives', 'lives');
+      lives = lives != null ? clampForced(lives, 1, 10) : defaults.lives;
+
+      var practiceTables = [];
+      if (input && Array.isArray(input.practiceTables)) {
+        var set2 = new Set();
+        for (var i2 = 0; i2 < input.practiceTables.length; i2++) {
+          var t2 = input.practiceTables[i2];
+          var c2 = clamp(t2, 1, 12);
+          if (c2 != null && !set2.has(c2)) set2.add(c2);
+        }
+        practiceTables = (function(arr) { arr.sort(function(a, b) { return a - b; }); return arr; })(Array.from(set2));
+      }
+
+      var pname = (input && typeof input.preset === 'string' && PRESETS[input.preset])
+        ? input.preset : defaults.preset;
+
+      return {
+        range:             { min: min, max: max },
+        questionsPerLevel: qpl,
+        timeLimitSec:     tsec,
+        lives:             lives,
+        practiceTables:   practiceTables,
+        preset:           pname
+      };
+    }
+
+    /** Apply a preset's values over `current` settings (returns fresh object). */
+    function applyPreset(name, current) {
+      var base = Object.assign({}, DEFAULT_SETTINGS, current || {});
+      var p = PRESETS[name];
+      if (p) {
+        base.preset            = name;
+        base.range             = Object.assign({}, base.range, p.range);
+        base.questionsPerLevel = p.questionsPerLevel != null ? p.questionsPerLevel : base.questionsPerLevel;
+        base.timeLimitSec      = p.timeLimitSec     != null ? p.timeLimitSec     : base.timeLimitSec;
+        base.lives             = p.lives            != null ? p.lives            : base.lives;
+      }
+      return clampSettings(base);
+    }
+
+    /** Build practice-tables list from user picks. */
+    function buildPracticeTables(picks, defaultRange) {
+      if (!Array.isArray(picks) || picks.length === 0) {
+        var r = defaultRange || DEFAULT_SETTINGS.range;
+        var tables = [];
+        for (var j = r.min; j <= Math.min(r.max, 12); j++) { tables.push(j); }
+        return tables;
+      }
+      var set3 = new Set();
+      for (var k = 0; k < picks.length; k++) {
+        var c3 = clamp(picks[k], 1, 12);
+        if (c3 != null && !set3.has(c3)) set3.add(c3);
+      }
+      return (function(arr) { arr.sort(function(a, b) { return a - b; }); return arr; })(Array.from(set3));
+    }
+
+    /** Get the localStorage key. */
+    function getStorageKey() { return 'ttt_settings'; }
+
+    return { DEFAULT_SETTINGS: DEFAULT_SETTINGS, PRESETS: PRESETS, clamp: clamp, clampForced: clampForced,
+             clampSettings: clampSettings, applyPreset: applyPreset, buildPracticeTables: buildPracticeTables,
+             getStorageKey: getStorageKey };
+  })();
+
+  // --- SETTINGS STATE (loaded from localStorage) ---
+  var _settings = null;  // current settings object
+  var _practiceTablesSelected = [];  // UI tracking for practice mode
+
+  /** Load settings from localStorage. */
+  function loadSettings() {
+    try {
+      var raw = localStorage.getItem(TTT_Settings.getStorageKey());
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          _settings = TTT_Settings.clampSettings(parsed);
+        } else {
+          _settings = JSON.parse(JSON.stringify(TTT_Settings.DEFAULT_SETTINGS));
+        }
+      } else {
+        _settings = JSON.parse(JSON.stringify(TTT_Settings.DEFAULT_SETTINGS));
+      }
+    } catch(e) {
+      _settings = JSON.parse(JSON.stringify(TTT_Settings.DEFAULT_SETTINGS));
+    }
+  }
+
+  /** Save settings to localStorage. */
+  function saveSettingsToStorage(settings) {
+    try {
+      localStorage.setItem(TTT_Settings.getStorageKey(), JSON.stringify(settings));
+    } catch(e) {}
+  }
+
+  // --- SETTINGS UI FUNCTIONS ---
+
+  /** Update all slider value displays and number inputs from _settings. */
+  function updateSlidersFromSettings() {
+    if (!_settings) return;
+    var rangeMinEl = document.getElementById('range-min');
+    var rangeMaxEl = document.getElementById('range-max');
+    var qplSliderEl = document.getElementById('qpl-slider');
+    var rangeMinValEl = document.getElementById('range-min-val');
+    var rangeMaxValEl = document.getElementById('range-max-val');
+    var qplValEl = document.getElementById('qpl-val');
+    var timeInputEl = document.getElementById('time-input');
+    var livesInputEl = document.getElementById('lives-input');
+
+    if (rangeMinEl) { rangeMinEl.value = _settings.range.min; rangeMinValEl.textContent = '\u00d7' + _settings.range.min; }
+    if (rangeMaxEl) { rangeMaxEl.value = _settings.range.max; rangeMaxValEl.textContent = '\u00d7' + _settings.range.max; }
+    if (qplSliderEl) { qplSliderEl.value = _settings.questionsPerLevel; qplValEl.textContent = _settings.questionsPerLevel; }
+    if (timeInputEl) { timeInputEl.value = String(_settings.timeLimitSec); }
+    if (livesInputEl) { livesInputEl.value = String(_settings.lives); }
+
+    // Update preset buttons
+    updatePresetButtons();
+  }
+
+  /** Mark the current preset button as active. */
+  function updatePresetButtons() {
+    var presetBtns = document.querySelectorAll('.preset-btn');
+    for (var i = 0; i < presetBtns.length; i++) {
+      presetBtns[i].classList.remove('active');
+    }
+    if (_settings && _settings.preset) {
+      var presetMap = { 'Easy': 'preset-easy', 'Medium': 'preset-medium', 'Hard': 'preset-hard' };
+      var activeId = presetMap[_settings.preset];
+      if (activeId) {
+        var activeBtn = document.getElementById(activeId);
+        if (activeBtn) activeBtn.classList.add('active');
+      }
+    }
+  }
+
+  /** Build the practice mode table picker grid. */
+  function buildPracticeGrid() {
+    var grid = document.getElementById('practice-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    _practiceTablesSelected = _settings.practiceTables ? _settings.practiceTables.slice() : [];
+
+    for (var t = 1; t <= 12; t++) {
+      var chip = document.createElement('div');
+      chip.className = 'table-chip' + (_practiceTablesSelected.indexOf(t) >= 0 ? ' selected' : '');
+      chip.textContent = '\u00d7' + t;
+      chip.setAttribute('data-table', String(t));
+      chip.setAttribute('tabindex', '0');
+      chip.setAttribute('role', 'button');
+      chip.setAttribute('aria-pressed', (_practiceTablesSelected.indexOf(t) >= 0 ? 'true' : 'false'));
+
+      chip.addEventListener('click', (function(tbl, chip) {
+        return function() {
+          var idx = _practiceTablesSelected.indexOf(tbl);
+          if (idx >= 0) {
+            _practiceTablesSelected.splice(idx, 1);
+            chip.classList.remove('selected');
+            chip.setAttribute('aria-pressed', 'false');
+          } else {
+            _practiceTablesSelected.push(tbl);
+            chip.classList.add('selected');
+            chip.setAttribute('aria-pressed', 'true');
+          }
+        };
+      })(t, chip));
+
+      chip.addEventListener('keydown', (function(tbl) {
+        return function(e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            chip.click();
+          }
+        };
+      })(t));
+
+      grid.appendChild(chip);
+    }
+  }
+
+  /** Open the settings screen overlay. */
+  function openSettingsScreen() {
+    loadSettings();
+    updateSlidersFromSettings();
+    buildPracticeGrid();
+    document.getElementById('hero-select').style.display = 'none';
+    document.getElementById('settings-screen').classList.add('active');
+  }
+
+  /** Close settings screen and return to hero select (without saving). */
+  function closeSettingsScreen() {
+    document.getElementById('settings-screen').classList.remove('active');
+    document.getElementById('hero-select').style.display = 'flex';
+  }
+
+  /** Save settings, apply them to gameState.cfg, and return to hero select. */
+  function saveAndApplySettings() {
+    // Build the current settings from slider/button values
+    var rangeMinVal = parseInt(document.getElementById('range-min').value) || 1;
+    var rangeMaxVal = parseInt(document.getElementById('range-max').value) || 5;
+    var qplVal = parseInt(document.getElementById('qpl-slider').value) || 10;
+    // Time and lives now use <input type="number"> elements
+    var timeInputEl = document.getElementById('time-input');
+    var livesInputEl = document.getElementById('lives-input');
+    var timeVal = (timeInputEl && timeInputEl.value) ? parseInt(timeInputEl.value, 10) : 15;
+    var livesVal = (livesInputEl && livesInputEl.value) ? parseInt(livesInputEl.value, 10) : 3;
+
+    // Clamp range: min <= max
+    if (rangeMinVal > rangeMaxVal) {
+      rangeMaxVal = rangeMinVal;
+      document.getElementById('range-max').value = rangeMaxVal;
+    }
+
+    var currentSettings = TTT_Settings.clampSettings({
+      range:             { min: rangeMinVal, max: rangeMaxVal },
+      questionsPerLevel: qplVal,
+      timeLimitSec:     timeVal,
+      lives:              livesVal,
+      practiceTables:   _practiceTablesSelected.slice(),
+      preset:           _settings ? _settings.preset : 'Easy'
+    });
+
+    // Persist to localStorage
+    saveSettingsToStorage(currentSettings);
+
+    // Apply to gameState for next game run
+    gameState.cfg = {
+      minTable: currentSettings.range.min,
+      maxTable: currentSettings.range.max,
+      timeLimit: currentSettings.timeLimitSec,
+      practiceTables: currentSettings.practiceTables ? currentSettings.practiceTables.slice() : []
+    };
+    gameState.difficulty = currentSettings.preset;
+    gameState.questionsPerLevel = currentSettings.questionsPerLevel;
+    gameState.lives = currentSettings.lives;
+
+    // Close settings, return to hero select
+    closeSettingsScreen();
+  }
+
+  // =============================================
+  // --- GAME INITIALIZATION ---
+  // =============================================
+
+  function init() {
+    loadSettings();
+
+    // Set initial cfg from loaded settings
+    if (_settings) {
+      gameState.cfg = {
+        minTable: _settings.range.min,
+        maxTable: _settings.range.max,
+        timeLimit: _settings.timeLimitSec,
+        practiceTables: _settings.practiceTables ? _settings.practiceTables.slice() : []
+      };
+      gameState.difficulty = _settings.preset;
+      gameState.questionsPerLevel = _settings.questionsPerLevel;
+      gameState.lives = _settings.lives;
+    }
+
+    // --- EVENT BINDINGS ---
+
+    // Hero select -> open settings
+    var openSettingsBtn = document.getElementById('open-settings-btn');
+    if (openSettingsBtn) {
+      openSettingsBtn.addEventListener('click', function() {
+        openSettingsScreen();
+      });
+    }
+
+    // Settings screen controls: sliders
+    var rangeMinSlider = document.getElementById('range-min');
+    if (rangeMinSlider) {
+      rangeMinSlider.addEventListener('input', function() {
+        var val = parseInt(this.value);
+        document.getElementById('range-min-val').textContent = '\u00d7' + val;
+        // If min exceeds max, adjust max down
+        if (val > parseInt(document.getElementById('range-max').value)) {
+          document.getElementById('range-max').value = val;
+          updateSlidersFromSettings();
+        }
+      });
+    }
+
+    var rangeMaxSlider = document.getElementById('range-max');
+    if (rangeMaxSlider) {
+      rangeMaxSlider.addEventListener('input', function() {
+        var val = parseInt(this.value);
+        document.getElementById('range-max-val').textContent = '\u00d7' + val;
+        // If max goes below min, adjust min up
+        if (val < parseInt(document.getElementById('range-min').value)) {
+          document.getElementById('range-min').value = val;
+          updateSlidersFromSettings();
+        }
+      });
+    }
+
+    var qplSlider = document.getElementById('qpl-slider');
+    if (qplSlider) {
+      qplSlider.addEventListener('input', function() {
+        document.getElementById('qpl-val').textContent = this.value;
+      });
+    }
+
+    // Preset buttons — use applyPreset from TTT_Settings module (verbatim)
+    var presetBtnIds = ['preset-easy', 'preset-medium', 'preset-hard'];
+    var presetNames  = ['Easy', 'Medium', 'Hard'];
+    for (var pi = 0; pi < presetBtnIds.length; pi++) {
+      (function(btnId, presetName) {
+        var btn = document.getElementById(btnId);
+        if (btn) {
+          btn.addEventListener('click', function() {
+            // Call applyPreset from the module and update UI from result
+            var applied = TTT_Settings.applyPreset(presetName, _settings);
+            var rangeMinEl  = document.getElementById('range-min');
+            var rangeMaxEl  = document.getElementById('range-max');
+            var rangeMinVal = document.getElementById('range-min-val');
+            var rangeMaxVal = document.getElementById('range-max-val');
+            if (rangeMinEl) { rangeMinEl.value = applied.range.min; }
+            if (rangeMaxEl) { rangeMaxEl.value = applied.range.max; }
+            if (rangeMinVal) { rangeMinVal.textContent = '\u00d7' + applied.range.min; }
+            if (rangeMaxVal) { rangeMaxVal.textContent = '\u00d7' + applied.range.max; }
+            var qplSliderEl  = document.getElementById('qpl-slider');
+            var qplValEl     = document.getElementById('qpl-val');
+            if (qplSliderEl) { qplSliderEl.value = applied.questionsPerLevel; }
+            if (qplValEl)    { qplValEl.textContent    = String(applied.questionsPerLevel); }
+            // Update time/lives inputs (now number inputs)
+            var timeInput = document.getElementById('time-input');
+            var livesInput = document.getElementById('lives-input');
+            if (timeInput)  { timeInput.value     = applied.timeLimitSec; }
+            if (livesInput) { livesInput.value    = String(applied.lives); }
+            _settings = applied;
+            updatePresetButtons();
+          });
+        }
+      })(presetBtnIds[pi], presetNames[pi]);
+    }
+
+    // Save & Cancel buttons
+    var saveBtn = document.getElementById('settings-save-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function() {
+        saveAndApplySettings();
+      });
+    }
+
+    var cancelBtn = document.getElementById('settings-cancel-btn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function() {
+        closeSettingsScreen();
+      });
+    }
+
+    // --- GAME STATE INIT ---
+    gameState.screen = 'settings';
+    updateHUD();
+    openSettingsScreen();
+    requestAnimationFrame(render);
+  }
+
+  // Start the game!
+  init();
+
+})();
+</script>
+</body>
+</html>
