@@ -41,6 +41,10 @@ html, body {
   padding: 8px 16px; background: rgba(44,24,16,0.9);
   border-bottom: 4px solid #5a3a20;
 }
+#hud-settings-btn {
+  pointer-events: auto !important;
+  cursor: pointer;
+}
 
 .hearts { display: flex; gap: 4px; align-items: center; }
 .coin-display { color: #FFD700; font-size: 20px; text-shadow: 2px 2px #8B4513; }
@@ -458,6 +462,7 @@ input[type="number"] {
       <div class="hearts" id="hearts-display"></div>
       <div class="coin-display" id="coin-display">🪙 0</div>
       <div class="combo-display" id="combo-display">Combo: x1</div>
+      <button class="go-to-settings-btn" id="hud-settings-btn" title="Settings (during gameplay)">⚙️</button>
     </div>
     <div id="hud-bottom-bar">
       <div class="xp-bar-container">
@@ -512,7 +517,11 @@ input[type="number"] {
   <!-- Hero select screen -->
   <div class="hero-select-screen" id="hero-select" style="display:none;">
     <div class="title-text">⚔️ Times Table Terror ⚔️</div>
-    <div class="start-prompt">Press Enter or Space to start!</div>
+    <div class="start-prompt" id="hero-select-prompt">Press Enter or Space to start!</div>
+    <!-- Continue Game button (shown only when mid-game save exists) -->
+    <div id="continue-game-row" style="display:none; text-align:center; margin-bottom:12px;">
+      <button class="go-to-settings-btn" id="continue-game-btn" tabindex="0">▶️ Continue Game</button>
+    </div>
     <div class="hero-card" id="hero-chickaletta" tabindex="0">
       <span class="emoji">🐔</span>
       <h3>Chickaletta</h3>
@@ -1555,9 +1564,13 @@ input[type="number"] {
     gameState.dungeonState = TTT.startDungeon(gameState.difficulty);
     gameState.gameWon = false;
     gameState.roomNumber = 1;
+    gameState.screen = 'playing';
 
     document.getElementById('hero-select').style.display = 'none';
     roomInfoEl.style.display = 'block';
+    // Show HUD settings button during gameplay
+    var hudBtn = document.getElementById('hud-settings-btn');
+    if (hudBtn) hudBtn.style.display = 'inline-block';
 
     startRoom();
   }
@@ -1789,7 +1802,21 @@ input[type="number"] {
 
   function showHeroSelectScreen() {
     document.getElementById('hero-select').style.display = 'flex';
+    var hudBtn = document.getElementById('hud-settings-btn');
+    if (hudBtn) hudBtn.style.display = 'none';
     gameState.screen = 'select';
+    // Check if there's a mid-game save to offer "Continue Game"
+    var continueRow = document.getElementById('continue-game-row');
+    var promptEl = document.getElementById('hero-select-prompt');
+    if (continueRow) {
+      if (hasMidGameSave()) {
+        continueRow.style.display = 'block';
+        if (promptEl) promptEl.textContent = 'Click a hero or Continue Game!';
+      } else {
+        continueRow.style.display = 'none';
+        if (promptEl) promptEl.textContent = 'Press Enter or Space to start!';
+      }
+    }
   }
 
   // --- WIN SCREEN ---
@@ -1867,6 +1894,25 @@ input[type="number"] {
   document.getElementById('hero-grapefruit').addEventListener('click', function() {
     selectHero('grapefruit');
   });
+
+  // Continue Game button — resumes from saved mid-game state
+  var continueGameBtn = document.getElementById('continue-game-btn');
+  if (continueGameBtn) {
+    continueGameBtn.addEventListener('click', function() {
+      if (resumeMidGame()) {
+        gameState.screen = 'playing';
+      } else {
+        showHeroSelectScreen();
+      }
+    });
+    // Also allow keyboard activation
+    continueGameBtn.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        continueGameBtn.click();
+      }
+    });
+  }
 
   // --- MAIN RENDER LOOP ---
   var lastTime = performance.now();
@@ -2284,19 +2330,137 @@ input[type="number"] {
     }
   }
 
-  /** Open the settings screen overlay. */
+  /** Save mid-game state to localStorage for later continuation. */
+  function saveMidGameState() {
+    if (!gameState.selectedHero || gameState.screen === 'select') return;
+    var saveData = {
+      hero: gameState.selectedHero,
+      heroState: gameState.heroState,
+      monster: gameState.monster,
+      currentQuestion: gameState.currentQuestion,
+      questionIndex: gameState.questionIndex,
+      combo: gameState.combo,
+      totalXp: gameState.totalXp,
+      coins: gameState.coins,
+      roomNumber: gameState.roomNumber,
+      levelXp: gameState.levelXp,
+      maxLevelXp: gameState.maxLevelXp,
+      timerValue: gameState.timerValue,
+      timerMax: gameState.timerMax,
+      lives: gameState.lives,
+      dungeonState: gameState.dungeonState,
+      currentRoomIndex: gameState.currentRoomIndex,
+      gameWon: gameState.gameWon,
+      timestamp: Date.now()
+    };
+    try {
+      localStorage.setItem('ttt_midgame', JSON.stringify(saveData));
+    } catch(e) { /* storage full or unavailable */ }
+  }
+
+  /** Restore mid-game state from localStorage and resume playing. */
+  function resumeMidGame() {
+    try {
+      var raw = localStorage.getItem('ttt_midgame');
+      if (!raw) return false;
+      var data = JSON.parse(raw);
+      gameState.selectedHero = data.hero;
+      gameState.heroState = data.heroState || null;
+      gameState.monster = data.monster || null;
+      gameState.currentQuestion = data.currentQuestion || null;
+      gameState.questionIndex = data.questionIndex !== undefined ? data.questionIndex : -1;
+      gameState.combo = data.combo || 0;
+      gameState.totalXp = data.totalXp || 0;
+      gameState.coins = data.coins || 0;
+      gameState.roomNumber = data.roomNumber || 1;
+      gameState.levelXp = data.levelXp || 0;
+      gameState.maxLevelXp = data.maxLevelXp || 25;
+      gameState.timerMax = data.timerMax || 10;
+      gameState.lives = data.lives || 3;
+      // Restore timer value so countdown resumes from where we left off
+      if (data.timerValue != null) {
+        gameState.timerValue = data.timerValue;
+      }
+      gameState.dungeonState = data.dungeonState || null;
+      gameState.currentRoomIndex = data.currentRoomIndex || 0;
+      gameState.gameWon = data.gameWon || false;
+
+      // Hide hero select, show game UI
+      document.getElementById('hero-select').style.display = 'none';
+      roomInfoEl.style.display = 'block';
+      document.getElementById('hud-below').style.display = 'block';
+      document.getElementById('question-area').style.display = 'block';
+      document.getElementById('dungeon-map').style.display = 'flex';
+
+      // Resume timer — do NOT call startTimer as it resets timerValue;
+      // instead just create a new interval from the saved timerValue
+      stopTimer();
+      if (gameState.monster && !gameState.monster.defeated) {
+        gameState.timerActive = true;
+        gameState.timerInterval = setInterval(function() {
+          if (!gameState.timerActive || gameState.isPaused) return;
+          gameState.timerValue -= 0.1;
+          if (gameState.timerValue <= 0) {
+            gameState.timerValue = 0;
+            handleWrongAnswer();
+          }
+        }, 100);
+      }
+
+      // Show the question and update HUD
+      if (gameState.currentQuestion) {
+        var q = gameState.currentQuestion;
+        questionTextEl.textContent = q.a + ' × ' + q.b + ' = ?';
+        updateAnswerBlocks(q);
+      } else {
+        pickNewQuestion();
+      }
+      updateHUD();
+
+      // Clear the save after resuming
+      localStorage.removeItem('ttt_midgame');
+      return true;
+    } catch(e) { return false; }
+  }
+
+  /** Check if there is saved mid-game progress to resume. */
+  function hasMidGameSave() {
+    try {
+      var raw = localStorage.getItem('ttt_midgame');
+      return raw !== null && raw.length > 0;
+    } catch(e) { return false; }
+  }
+
+  /** Open the settings screen overlay, pausing gameplay if active. */
   function openSettingsScreen() {
+    // Pause the game timer if we're in the middle of playing
+    if (gameState.screen === 'playing') {
+      saveMidGameState();
+      stopTimer();
+    }
     loadSettings();
     updateSlidersFromSettings();
     buildPracticeGrid();
     document.getElementById('hero-select').style.display = 'none';
+    var hudBtn = document.getElementById('hud-settings-btn');
+    if (hudBtn) hudBtn.style.display = 'none';
     document.getElementById('settings-screen').classList.add('active');
+    gameState.screen = 'settings';
   }
 
-  /** Close settings screen and return to hero select (without saving). */
+  /** Close settings screen and resume game from saved checkpoint. */
   function closeSettingsScreen() {
     document.getElementById('settings-screen').classList.remove('active');
-    document.getElementById('hero-select').style.display = 'flex';
+    // If we paused during play, resume the game
+    if (hasMidGameSave()) {
+      resumeMidGame();
+    } else {
+      // No save — go to hero select as usual
+      document.getElementById('hero-select').style.display = 'flex';
+    }
+    // Show HUD settings button when back in gameplay
+    var hudBtn = document.getElementById('hud-settings-btn');
+    if (hudBtn) hudBtn.style.display = 'inline-block';
   }
 
   /** Save settings, apply them to gameState.cfg, and return to hero select. */
@@ -2340,7 +2504,10 @@ input[type="number"] {
     gameState.questionsPerLevel = currentSettings.questionsPerLevel;
     gameState.lives = currentSettings.lives;
 
-    // Close settings, return to hero select
+    // Close settings, return to hero select (don't restart — just show screen)
+    // Hide HUD settings button since we're going back to hero select
+    var hudBtn = document.getElementById('hud-settings-btn');
+    if (hudBtn) hudBtn.style.display = 'none';
     closeSettingsScreen();
   }
 
@@ -2370,6 +2537,15 @@ input[type="number"] {
     var openSettingsBtn = document.getElementById('open-settings-btn');
     if (openSettingsBtn) {
       openSettingsBtn.addEventListener('click', function() {
+        openSettingsScreen();
+      });
+    }
+
+    // HUD top bar -> open settings (available during gameplay)
+    var hudSettingsBtn = document.getElementById('hud-settings-btn');
+    if (hudSettingsBtn) {
+      hudSettingsBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
         openSettingsScreen();
       });
     }
@@ -2461,8 +2637,7 @@ input[type="number"] {
     gameState.screen = 'settings';
     updateHUD();
     openSettingsScreen();
-    requestAnimationFrame(render);
-  }
+    requestAnimationFrame(render);  }
 
   // Start the game!
   init();
