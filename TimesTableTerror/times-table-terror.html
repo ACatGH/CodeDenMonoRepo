@@ -415,6 +415,10 @@ html, body {
   background: linear-gradient(to bottom, #8B4513, #6B4F30);
   border-color: #5a3a20;
 }
+.settings-actions .btn-continue {
+  background: linear-gradient(to bottom, #2980B9, #1A5276);
+  border-color: #0E3B5A;
+}
 
 /* Hero select settings link */
 .hero-card + .settings-link-row {
@@ -593,6 +597,7 @@ input[type="number"] {
       <div class="settings-actions">
         <button class="btn-cancel" id="settings-cancel-btn">Cancel</button>
         <button class="btn-save" id="settings-save-btn">💾 Save &amp; Play</button>
+        <button class="btn-continue" id="settings-continue-btn">▶️ Continue Game</button>
       </div>
     </div>
   </div>
@@ -2284,12 +2289,20 @@ input[type="number"] {
     }
   }
 
-  /** Open the settings screen overlay. */
+  /** Open the settings screen overlay. Pauses game if currently playing. */
   function openSettingsScreen() {
     loadSettings();
     updateSlidersFromSettings();
     buildPracticeGrid();
+
+    // Pause the game: stop timer and set isPaused if actively playing
+    if (gameState.screen === 'playing' || gameState.screen === 'question') {
+      stopTimer();
+      gameState.isPaused = true;
+    }
+
     document.getElementById('hero-select').style.display = 'none';
+    gameState.screen = 'settings';
     document.getElementById('settings-screen').classList.add('active');
   }
 
@@ -2297,6 +2310,21 @@ input[type="number"] {
   function closeSettingsScreen() {
     document.getElementById('settings-screen').classList.remove('active');
     document.getElementById('hero-select').style.display = 'flex';
+  }
+
+  /** Continue game from settings: close overlay, resume timer. */
+  function continueGame() {
+    // Close the settings overlay
+    document.getElementById('settings-screen').classList.remove('active');
+
+    // Reset pause state if we were in active gameplay
+    if (gameState.screen === 'settings' && gameState.selectedHero) {
+      gameState.isPaused = false;
+      // Restart the timer for the current question
+      if (gameState.currentQuestion) {
+        startTimer();
+      }
+    }
   }
 
   /** Save settings, apply them to gameState.cfg, and return to hero select. */
@@ -2454,6 +2482,14 @@ input[type="number"] {
     if (cancelBtn) {
       cancelBtn.addEventListener('click', function() {
         closeSettingsScreen();
+      });
+    }
+
+    // Continue Game button — restores gameplay without saving settings
+    var continueBtn = document.getElementById('settings-continue-btn');
+    if (continueBtn) {
+      continueBtn.addEventListener('click', function() {
+        continueGame();
       });
     }
 
